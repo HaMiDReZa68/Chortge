@@ -17,7 +17,13 @@ data class Tx(
     val body: String,
 )
 
-data class BankInfo(val sender: String, val name: String, val count: Int, val enabled: Boolean)
+data class BankInfo(
+    val sender: String,
+    val name: String,
+    val count: Int,
+    val enabled: Boolean,
+    val balance: Long? = null,
+)
 
 /** حدس نام بانک از روی شناسهٔ فرستندهٔ پیامک؛ اگر نشناسیم همان شناسه نمایش داده می‌شود */
 object BankNames {

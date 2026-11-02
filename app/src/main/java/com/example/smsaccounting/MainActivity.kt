@@ -52,7 +52,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -166,6 +168,7 @@ fun Screen(vm: MainViewModel) {
     var selected by remember { mutableStateOf<Tx?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var showAdd by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
 
     val list = vm.items
     val income = list.filter { it.type == TxType.INCOME }.sumOf { it.amount }
@@ -188,9 +191,9 @@ fun Screen(vm: MainViewModel) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        LazyColumn(
+        if (tab == 1) LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(bottom = 150.dp),
         ) {
             // ---- هدر گرادیانی ----
             item {
@@ -218,8 +221,6 @@ fun Screen(vm: MainViewModel) {
                         )
                         Spacer(Modifier.width(8.dp))
                         RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
-                        Spacer(Modifier.width(8.dp))
-                        RoundBtn("⚙", { showSettings = true })
                     }
 
                     Spacer(Modifier.height(18.dp))
@@ -480,12 +481,32 @@ fun Screen(vm: MainViewModel) {
             }
         }
 
-        if (!vm.searchOpen) {
+        when (tab) {
+            0 -> HomeScreen(
+                vm,
+                onAdd = { showAdd = true },
+                onSearch = {
+                    tab = 1
+                    if (!vm.searchOpen) vm.toggleSearch()
+                },
+                onSelect = { selected = it },
+                hasPerm = hasPerm,
+                onRequestPerm = {
+                    launcher.launch(
+                        arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS)
+                    )
+                },
+            )
+            2 -> BudgetScreen(vm)
+            3 -> SettingsScreen(vm)
+        }
+
+        if ((tab == 0 || tab == 1) && !vm.searchOpen) {
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
                     .navigationBarsPadding()
-                    .padding(20.dp)
+                    .padding(start = 20.dp, bottom = 84.dp)
                     .size(58.dp)
                     .clip(CircleShape)
                     .background(Brush.verticalGradient(listOf(Teal2, Teal1)))
@@ -496,14 +517,14 @@ fun Screen(vm: MainViewModel) {
             }
         }
 
-        if (showSettings) {
-            BackHandler { showSettings = false }
-            SettingsScreen(vm) { showSettings = false }
-        }
+        BackHandler(enabled = tab != 0) { tab = 0 }
+        BottomBar(tab, { tab = it }, Modifier.align(Alignment.BottomCenter))
 
         SnackbarHost(
             snack,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 76.dp),
         )
     }
 
@@ -634,7 +655,7 @@ internal fun RoundBtn(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MiniStat(title: String, value: String, arrow: String, modifier: Modifier) {
+internal fun MiniStat(title: String, value: String, arrow: String, modifier: Modifier) {
     Row(
         modifier
             .clip(RoundedCornerShape(18.dp))
@@ -766,7 +787,7 @@ private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, un
 }
 
 @Composable
-private fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, onClick: () -> Unit) {
+internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, onClick: () -> Unit) {
     val isIncome = tx.type == TxType.INCOME
     Surface(
         modifier = Modifier

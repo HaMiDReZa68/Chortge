@@ -90,6 +90,67 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         return out
     }
 
+    /** مجموع درآمد و هزینهٔ نقدی (ریال) */
+    fun cashSums(): Pair<Long, Long> {
+        var inc = 0L
+        var exp = 0L
+        readableDatabase.rawQuery(
+            "SELECT type, SUM(amount) FROM tx WHERE sender = 'cash' AND deleted = 0 GROUP BY type",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) {
+                val v = c.getLong(1)
+                if (c.getString(0) == "INCOME") inc = v else exp = v
+            }
+        }
+        return inc to exp
+    }
+
+    /** آخرین «مانده» ثبت‌شده در پیامک هر بانک */
+    fun lastBalances(): Map<String, Long> {
+        val m = HashMap<String, Long>()
+        readableDatabase.rawQuery(
+            "SELECT t.sender, t.balance FROM tx t WHERE t.deleted = 0 AND t.balance IS NOT NULL " +
+                "AND t.ts = (SELECT MAX(ts) FROM tx WHERE sender = t.sender AND deleted = 0 AND balance IS NOT NULL)",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) m[c.getString(0)] = c.getLong(1)
+        }
+        return m
+    }
+
+    fun recent(limit: Int): List<Tx> {
+        val out = ArrayList<Tx>()
+        readableDatabase.query(
+            "tx", null, "deleted = 0", null, null, null, "ts DESC", limit.toString(),
+        ).use { c ->
+            while (c.moveToNext()) out.add(c.toTx())
+        }
+        return out
+    }
+
+    /** آخرین مانده‌ای که در پیامک هر فرستنده آمده */
+    fun lastBalances(): Map<String, Long> {
+        val out = HashMap<String, Long>()
+        readableDatabase.rawQuery(
+            "SELECT sender, balance FROM tx t WHERE deleted = 0 AND balance IS NOT NULL AND ts = " +
+                "(SELECT MAX(ts) FROM tx WHERE sender = t.sender AND deleted = 0 AND balance IS NOT NULL)",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) out[c.getString(0)] = c.getLong(1)
+        }
+        return out
+    }
+
+    /** مجموع خالص تراکنش‌های نقدی (دخل منهای خرج) */
+    fun cashNet(): Long {
+        readableDatabase.rawQuery(
+            "SELECT COALESCE(SUM(CASE type WHEN 'INCOME' THEN amount ELSE -amount END), 0) " +
+                "FROM tx WHERE sender = 'cash' AND deleted = 0",
+            null,
+        ).use { c -> return if (c.moveToFirst()) c.getLong(0) else 0L }
+    }
+
     fun search(q: String): List<Tx> {
         val like = "%" + q.trim() + "%"
         val out = ArrayList<Tx>()
