@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -86,10 +88,10 @@ private val Vazir = FontFamily(
     Font(R.font.vazirmatn_bold, FontWeight.SemiBold),
 )
 
-private val Teal1 = Color(0xFF0F766E)
-private val Teal2 = Color(0xFF14B8A6)
-private val Green = Color(0xFF16A34A)
-private val Red = Color(0xFFE11D48)
+internal val Teal1 = Color(0xFF0F766E)
+internal val Teal2 = Color(0xFF14B8A6)
+internal val Green = Color(0xFF16A34A)
+internal val Red = Color(0xFFE11D48)
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -162,6 +164,8 @@ fun Screen(vm: MainViewModel) {
     }
 
     var selected by remember { mutableStateOf<Tx?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showAdd by remember { mutableStateOf(false) }
 
     val list = vm.items
     val income = list.filter { it.type == TxType.INCOME }.sumOf { it.amount }
@@ -186,7 +190,7 @@ fun Screen(vm: MainViewModel) {
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp),
+            contentPadding = PaddingValues(bottom = 96.dp),
         ) {
             // ---- هدر گرادیانی ----
             item {
@@ -203,7 +207,7 @@ fun Screen(vm: MainViewModel) {
                             "حسابداری پیامک",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             modifier = Modifier.weight(1f),
                         )
                         Pill(
@@ -214,6 +218,8 @@ fun Screen(vm: MainViewModel) {
                         )
                         Spacer(Modifier.width(8.dp))
                         RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
+                        Spacer(Modifier.width(8.dp))
+                        RoundBtn("⚙", { showSettings = true })
                     }
 
                     Spacer(Modifier.height(18.dp))
@@ -474,11 +480,34 @@ fun Screen(vm: MainViewModel) {
             }
         }
 
+        if (!vm.searchOpen) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(20.dp)
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(Brush.verticalGradient(listOf(Teal2, Teal1)))
+                    .clickable { showAdd = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("＋", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (showSettings) {
+            BackHandler { showSettings = false }
+            SettingsScreen(vm) { showSettings = false }
+        }
+
         SnackbarHost(
             snack,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+
+    if (showAdd) AddCashDialog(vm) { showAdd = false }
 
     val tx = selected
     if (tx != null) {
@@ -554,7 +583,7 @@ fun Screen(vm: MainViewModel) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(
         text,
         fontWeight = FontWeight.Bold,
@@ -591,7 +620,7 @@ private fun Pill(
 }
 
 @Composable
-private fun RoundBtn(label: String, onClick: () -> Unit) {
+internal fun RoundBtn(label: String, onClick: () -> Unit) {
     Box(
         Modifier
             .size(38.dp)
@@ -638,7 +667,7 @@ private fun MiniStat(title: String, value: String, arrow: String, modifier: Modi
 }
 
 @Composable
-private fun CatIcon(cat: String, size: Int) {
+internal fun CatIcon(cat: String, size: Int) {
     Box(
         Modifier
             .size(size.dp)
@@ -761,7 +790,8 @@ private fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = 
                     fontSize = 14.sp,
                 )
                 Text(
-                    if (withDate) "${tx.category} · ${Jalali.full(tx.ts)}" else "${tx.category} · ${Jalali.time(tx.ts)}",
+                    (if (tx.sender == "cash") "💵 نقدی · " else "") +
+                        (if (withDate) "${tx.category} · ${Jalali.full(tx.ts)}" else "${tx.category} · ${Jalali.time(tx.ts)}"),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -784,7 +814,7 @@ private fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = 
 }
 
 @Composable
-private fun ModeToggle(mode: TxType, onChange: (TxType) -> Unit) {
+internal fun ModeToggle(mode: TxType, onChange: (TxType) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(TxType.EXPENSE to "خرج", TxType.INCOME to "دخل").forEach { (t, label) ->
             val sel = mode == t

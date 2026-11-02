@@ -5,7 +5,14 @@ import android.provider.Telephony
 
 object Importer {
 
-    private fun build(sender: String, body: String, ts: Long, learned: Map<String, String>): Tx? {
+    private fun build(
+        sender: String,
+        body: String,
+        ts: Long,
+        learned: Map<String, String>,
+        disabled: Set<String>,
+    ): Tx? {
+        if (sender in disabled) return null
         val p = SmsParser.parse(body) ?: return null
         return Tx(
             hash = sha1("$sender|$ts|$body"),
@@ -23,7 +30,8 @@ object Importer {
 
     /** پیامک تازه‌رسیده (از SmsReceiver) */
     fun handle(ctx: Context, sender: String, body: String, ts: Long): Boolean {
-        val tx = build(sender, body, ts, Prefs(ctx).learned()) ?: return false
+        val prefs = Prefs(ctx)
+        val tx = build(sender, body, ts, prefs.learned(), prefs.disabledSenders()) ?: return false
         val ok = Db.get(ctx).insert(tx)
         if (ok) Store.notifyChanged()
         return ok
@@ -34,6 +42,7 @@ object Importer {
         val prefs = Prefs(ctx)
         val db = Db.get(ctx)
         val learned = prefs.learned()
+        val disabled = prefs.disabledSenders()
         val since = if (all) 0L else prefs.lastImport
         var maxTs = since
         var added = 0
@@ -52,7 +61,7 @@ object Importer {
                 val ts = c.getLong(id)
                 if (ts > maxTs) maxTs = ts
                 val body = c.getString(ib) ?: continue
-                val tx = build(c.getString(ia) ?: "", body, ts, learned) ?: continue
+                val tx = build(c.getString(ia) ?: "", body, ts, learned, disabled) ?: continue
                 if (db.insert(tx)) added++
             }
         }

@@ -28,4 +28,38 @@ class Prefs(ctx: Context) {
     fun learn(mkey: String, category: String) {
         sp.edit().putString("m_$mkey", category).apply()
     }
+
+    var reminderOn: Boolean
+        get() = sp.getBoolean("rem_on", false)
+        set(v) {
+            sp.edit().putBoolean("rem_on", v).apply()
+        }
+
+    var reminderH: Int
+        get() = sp.getInt("rem_h", 21)
+        set(v) {
+            sp.edit().putInt("rem_h", v).apply()
+        }
+
+    var reminderM: Int
+        get() = sp.getInt("rem_m", 0)
+        set(v) {
+            sp.edit().putInt("rem_m", v).apply()
+        }
+
+    /** فرستنده‌هایی که کاربر خوانده‌شدنشان را خاموش کرده */
+    fun disabledSenders(): Set<String> =
+        HashSet(sp.getStringSet("disabled_senders", emptySet()) ?: emptySet())
+
+    fun setSenderEnabled(sender: String, enabled: Boolean) {
+        val s = disabledSenders().toMutableSet()
+        if (enabled) s.remove(sender) else s.add(sender)
+        sp.edit().putStringSet("disabled_senders", s).apply()
+    }
+
+    fun bankName(sender: String): String? = sp.getString("bn_$sender", null)?.takeIf { it.isNotBlank() }
+
+    fun setBankName(sender: String, name: String) {
+        sp.edit().putString("bn_$sender", name).apply()
+    }
 }

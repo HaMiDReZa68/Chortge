@@ -43,7 +43,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
     /** true اگر تراکنش جدید ثبت شد؛ پیامک تکراری نادیده گرفته می‌شود */
     fun insert(t: Tx): Boolean {
         val d = writableDatabase
-        val exists = d.rawQuery(
+        val exists = t.sender != "cash" && d.rawQuery(
             "SELECT 1 FROM tx WHERE sender = ? AND body = ? AND ts BETWEEN ? AND ? LIMIT 1",
             arrayOf(t.sender, t.body, (t.ts - 120_000).toString(), (t.ts + 120_000).toString()),
         ).use { it.moveToFirst() }
@@ -73,6 +73,19 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
             null, null, "ts DESC",
         ).use { c ->
             while (c.moveToNext()) out.add(c.toTx())
+        }
+        return out
+    }
+
+    /** فرستنده‌های پیامک (به‌جز نقدی) و تعداد تراکنش هر کدام */
+    fun senders(): List<Pair<String, Int>> {
+        val out = ArrayList<Pair<String, Int>>()
+        readableDatabase.rawQuery(
+            "SELECT sender, COUNT(*) FROM tx WHERE sender != 'cash' AND deleted = 0 " +
+                "GROUP BY sender ORDER BY COUNT(*) DESC",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) out.add(c.getString(0) to c.getInt(1))
         }
         return out
     }

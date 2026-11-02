@@ -36,11 +36,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var results by mutableStateOf<List<Tx>>(emptyList())
         private set
+    var reminderOn by mutableStateOf(prefs.reminderOn)
+        private set
+    var reminderH by mutableStateOf(prefs.reminderH)
+        private set
+    var reminderM by mutableStateOf(prefs.reminderM)
+        private set
+    var banks by mutableStateOf<List<BankInfo>>(emptyList())
+        private set
 
     init {
         viewModelScope.launch {
             Store.changes.collect {
                 loadMonth()
+                loadBanks()
                 if (query.isNotBlank()) runSearch()
             }
         }
@@ -50,8 +59,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val ym = month
         val (from, to) = Jalali.range(ym)
         val (pf, pt) = Jalali.range(ym.prev())
-        val list = withContext(Dispatchers.IO) { db.query(from, to) }
-        val prev = withContext(Dispatchers.IO) { db.query(pf, pt) }
+        val dis = prefs.disabledSenders()
+        val list = withContext(Dispatchers.IO) { db.query(from, to) }.filter { it.sender !in dis }
+        val prev = withContext(Dispatchers.IO) { db.query(pf, pt) }.filter { it.sender !in dis }
         if (ym == month) {
             items = list
             prevIncome = prev.filter { it.type == TxType.INCOME }.sumOf { it.amount }
@@ -61,7 +71,63 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun runSearch() {
         val q = Norm.normalize(query)
-        results = if (q.isBlank()) emptyList() else withContext(Dispatchers.IO) { db.search(q) }
+        val dis = prefs.disabledSenders()
+        results = if (q.isBlank()) emptyList()
+        else withContext(Dispatchers.IO) { db.search(q) }.filter { it.sender !in dis }
+    }
+
+    private suspend fun loadBanks() {
+        val dis = prefs.disabledSenders()
+        val rows = withContext(Dispatchers.IO) { db.senders() }
+        banks = rows.map { (s, n) -> BankInfo(s, prefs.bankName(s) ?: BankNames.guess(s), n, s !in dis) }
+    }
+
+    fun applyReminder(on: Boolean, h: Int, m: Int) {
+        prefs.reminderOn = on
+        prefs.reminderH = h
+        prefs.reminderM = m
+        reminderOn = on
+        reminderH = h
+        reminderM = m
+        val app = getApplication<Application>()
+        if (on) Reminder.schedule(app) else Reminder.cancel(app)
+    }
+
+    fun toggleBank(sender: String, enabled: Boolean) {
+        prefs.setSenderEnabled(sender, enabled)
+        Store.notifyChanged()
+        if (enabled) importSms(true)
+    }
+
+    fun renameBank(sender: String, name: String) {
+        prefs.setBankName(sender, name.trim())
+        Store.notifyChanged()
+    }
+
+    fun addCash(type: TxType, amountRial: Long, note: String, category: String) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val n = note.trim()
+            withContext(Dispatchers.IO) {
+                db.insert(
+                    Tx(
+                        hash = sha1("cash|$now|${System.nanoTime()}"),
+                        sender = "cash",
+                        type = type,
+                        amount = amountRial,
+                        balance = null,
+                        merchant = n,
+                        mkey = Categorizer.mkey(n),
+                        category = category,
+                        ts = now,
+                        body = if (n.isEmpty()) "تراکنش نقدی" else "تراکنش نقدی: $n",
+                    )
+                )
+            }
+            month = Jalali.ymOf(now)
+            status = "تراکنش نقدی ثبت شد"
+            Store.notifyChanged()
+        }
     }
 
     fun changeMode(m: TxType) {
