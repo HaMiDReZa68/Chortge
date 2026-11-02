@@ -213,12 +213,12 @@ fun Screen(vm: MainViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = vm.toman,
-                        onClick = { vm.setToman(true) },
+                        onClick = { vm.changeToman(true) },
                         label = { Text("تومان") },
                     )
                     FilterChip(
                         selected = !vm.toman,
-                        onClick = { vm.setToman(false) },
+                        onClick = { vm.changeToman(false) },
                         label = { Text("ریال") },
                     )
                 }

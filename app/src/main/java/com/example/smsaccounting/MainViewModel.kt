@@ -38,15 +38,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (ym == month) items = list
     }
 
-    private fun setMonth(ym: Jalali.YM) {
+    private fun changeMonth(ym: Jalali.YM) {
         month = ym
         viewModelScope.launch { loadMonth() }
     }
 
-    fun prevMonth() = setMonth(month.prev())
-    fun nextMonth() = setMonth(month.next())
+    fun prevMonth() = changeMonth(month.prev())
+    fun nextMonth() = changeMonth(month.next())
 
-    fun setToman(v: Boolean) {
+    fun changeToman(v: Boolean) {
         toman = v
         prefs.toman = v
     }
