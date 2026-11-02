@@ -44,4 +44,16 @@ object Jalali {
         val mm = c.get(Calendar.MINUTE)
         return Fa.digits("$day $month") + " – " + Fa.digits("%02d:%02d".format(hh, mm))
     }
+
+    fun dayLabel(ms: Long): String {
+        val c = cal()
+        c.timeInMillis = ms
+        return Fa.digits("${c.get(Calendar.DAY_OF_MONTH)} ${monthNames[c.get(Calendar.MONTH)]}")
+    }
+
+    fun time(ms: Long): String {
+        val c = cal()
+        c.timeInMillis = ms
+        return Fa.digits("%02d:%02d".format(c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE)))
+    }
 }
