@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -54,12 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.Font
@@ -162,7 +166,10 @@ fun Screen(vm: MainViewModel) {
     val list = vm.items
     val income = list.filter { it.type == TxType.INCOME }.sumOf { it.amount }
     val expense = list.filter { it.type == TxType.EXPENSE }.sumOf { it.amount }
-    val byCat = list.filter { it.type == TxType.EXPENSE }
+    val isExp = vm.mode == TxType.EXPENSE
+    val modeList = list.filter { it.type == vm.mode }
+    val modeTotal = modeList.sumOf { it.amount }
+    val byCat = modeList
         .groupBy { it.category }
         .map { (k, v) -> k to v.sumOf { it.amount } }
         .sortedByDescending { it.second }
@@ -205,6 +212,8 @@ fun Screen(vm: MainViewModel) {
                             enabled = hasPerm && !vm.busy,
                             onClick = { vm.importSms(false) },
                         )
+                        Spacer(Modifier.width(8.dp))
+                        RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
                     }
 
                     Spacer(Modifier.height(18.dp))
@@ -302,10 +311,114 @@ fun Screen(vm: MainViewModel) {
                 }
             }
 
+            if (vm.searchOpen) {
+                item {
+                    OutlinedTextField(
+                        value = vm.query,
+                        onValueChange = vm::search,
+                        placeholder = { Text("جستجو در فروشنده، دسته یا متن پیامک") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                    )
+                }
+                if (vm.query.isNotBlank()) {
+                    item {
+                        val sumExp = vm.results.filter { it.type == TxType.EXPENSE }.sumOf { it.amount }
+                        Text(
+                            Fa.digits(vm.results.size.toString()) + " تراکنش  ·  " + show(sumExp) + " " + unit + " هزینه",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        )
+                    }
+                    items(vm.results, key = { it.id }) { tx ->
+                        TxRow(tx, show(tx.amount), unit, withDate = true) { selected = tx }
+                    }
+                }
+            } else {
+            item {
+                val days = Jalali.daysIn(vm.month)
+                val sums = LongArray(days + 1)
+                modeList.forEach { t ->
+                    val d = Jalali.dayOf(t.ts)
+                    if (d in 1..days) sums[d] += t.amount
+                }
+                val now = System.currentTimeMillis()
+                val elapsed = if (vm.month == Jalali.ymOf(now)) Jalali.dayOf(now).coerceAtLeast(1) else days
+                val avg = modeTotal / elapsed
+                val prevTotal = if (isExp) vm.prevExpense else vm.prevIncome
+                val d = modeTotal - prevTotal
+                var picked by remember(vm.month, vm.mode) { mutableStateOf<Int?>(null) }
+                val barColor = if (isExp) Color(0xFFF59E0B) else Green
+
+                Column(Modifier.padding(16.dp)) {
+                    ModeToggle(vm.mode, vm::changeMode)
+                    Spacer(Modifier.height(12.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 2.dp,
+                    ) {
+                        Column(
+                            Modifier.padding(18.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                (if (isExp) "خرج " else "دخل ") + Jalali.title(vm.month),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                show(modeTotal) + " " + unit,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp,
+                            )
+                            val up = d >= 0
+                            val good = if (isExp) !up else up
+                            Text(
+                                "اختلاف با ماه قبل: " + (if (up) "▲ " else "▼ ") + show(kotlin.math.abs(d)) + " " + unit,
+                                fontSize = 12.sp,
+                                color = if (prevTotal == 0L) MaterialTheme.colorScheme.onSurfaceVariant
+                                else if (good) Green else Red,
+                            )
+                            Text(
+                                "میانگین روزانه: " + show(avg) + " " + unit,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            val p = picked
+                            Text(
+                                if (p == null) "برای دیدن مبلغ هر روز، روی میله بزنید"
+                                else Fa.digits("$p ${Jalali.monthNames[vm.month.month - 1]}") +
+                                    ": " + show(sums[p]) + " " + unit,
+                                fontSize = 12.sp,
+                                fontWeight = if (p == null) FontWeight.Normal else FontWeight.Bold,
+                                color = if (p == null) MaterialTheme.colorScheme.onSurfaceVariant else barColor,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            DayBars(days, sums, barColor, picked) { picked = if (picked == it) null else it }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("۱", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    Fa.digits(days.toString()),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // ---- نمودار دسته‌ها ----
             if (byCat.isNotEmpty()) {
                 item {
-                    SectionTitle("هزینه‌ها بر اساس دسته")
+                    SectionTitle(if (isExp) "هزینه‌ها بر اساس دسته" else "درآمدها بر اساس دسته")
                 }
                 item {
                     Surface(
@@ -317,11 +430,11 @@ fun Screen(vm: MainViewModel) {
                         shadowElevation = 2.dp,
                     ) {
                         Column(Modifier.padding(18.dp)) {
-                            Donut(byCat, expense, show(expense), unit)
+                            Donut(byCat, modeTotal, show(modeTotal), unit, if (isExp) "مجموع هزینه" else "مجموع درآمد")
                             Spacer(Modifier.height(18.dp))
                             byCat.forEachIndexed { i, (cat, sum) ->
                                 if (i > 0) Spacer(Modifier.height(14.dp))
-                                CategoryRow(cat, sum, expense, show(sum), unit)
+                                CategoryRow(cat, sum, modeTotal, show(sum), unit)
                             }
                         }
                     }
@@ -357,6 +470,7 @@ fun Screen(vm: MainViewModel) {
                 items(txs, key = { it.id }) { tx ->
                     TxRow(tx, show(tx.amount), unit) { selected = tx }
                 }
+            }
             }
         }
 
@@ -537,7 +651,7 @@ private fun CatIcon(cat: String, size: Int) {
 }
 
 @Composable
-private fun Donut(data: List<Pair<String, Long>>, total: Long, totalText: String, unit: String) {
+private fun Donut(data: List<Pair<String, Long>>, total: Long, totalText: String, unit: String, label: String) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -568,7 +682,7 @@ private fun Donut(data: List<Pair<String, Long>>, total: Long, totalText: String
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                "مجموع هزینه",
+                label,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -623,7 +737,7 @@ private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, un
 }
 
 @Composable
-private fun TxRow(tx: Tx, amountText: String, unit: String, onClick: () -> Unit) {
+private fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, onClick: () -> Unit) {
     val isIncome = tx.type == TxType.INCOME
     Surface(
         modifier = Modifier
@@ -647,7 +761,7 @@ private fun TxRow(tx: Tx, amountText: String, unit: String, onClick: () -> Unit)
                     fontSize = 14.sp,
                 )
                 Text(
-                    "${tx.category} · ${Jalali.time(tx.ts)}",
+                    if (withDate) "${tx.category} · ${Jalali.full(tx.ts)}" else "${tx.category} · ${Jalali.time(tx.ts)}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -665,6 +779,68 @@ private fun TxRow(tx: Tx, amountText: String, unit: String, onClick: () -> Unit)
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ModeToggle(mode: TxType, onChange: (TxType) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(TxType.EXPENSE to "خرج", TxType.INCOME to "دخل").forEach { (t, label) ->
+            val sel = mode == t
+            val bg = when {
+                !sel -> MaterialTheme.colorScheme.surface
+                t == TxType.EXPENSE -> Color(0xFFFFE8CC)
+                else -> Color(0xFFD9F2E3)
+            }
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(bg)
+                    .clickable { onChange(t) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                    color = if (sel) Color(0xFF1F2937) else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** میله‌های روزانه؛ روز اول سمت راست است */
+@Composable
+private fun DayBars(days: Int, sums: LongArray, color: Color, picked: Int?, onPick: (Int) -> Unit) {
+    val maxV = (sums.maxOrNull() ?: 0L).coerceAtLeast(1L)
+    Canvas(
+        Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .pointerInput(days) {
+                detectTapGestures { off ->
+                    val slot = size.width.toFloat() / days
+                    val idx = (off.x / slot).toInt().coerceIn(0, days - 1)
+                    onPick(days - idx)
+                }
+            }
+    ) {
+        val slot = size.width / days
+        val barW = slot * 0.68f
+        for (d in 1..days) {
+            val v = sums[d]
+            val h = if (v <= 0L) 3.dp.toPx() else (size.height * v.toFloat() / maxV.toFloat()).coerceAtLeast(6.dp.toPx())
+            val x = (days - d) * slot + (slot - barW) / 2
+            val sel = picked == d
+            drawRoundRect(
+                color = if (v <= 0L) color.copy(alpha = 0.15f) else if (sel) color else color.copy(alpha = 0.4f),
+                topLeft = Offset(x, size.height - h),
+                size = Size(barW, h),
+                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
+            )
         }
     }
 }

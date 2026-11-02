@@ -24,18 +24,61 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var busy by mutableStateOf(false)
         private set
+    var mode by mutableStateOf(TxType.EXPENSE)
+        private set
+    var prevIncome by mutableStateOf(0L)
+        private set
+    var prevExpense by mutableStateOf(0L)
+        private set
+    var searchOpen by mutableStateOf(false)
+        private set
+    var query by mutableStateOf("")
+        private set
+    var results by mutableStateOf<List<Tx>>(emptyList())
+        private set
 
     init {
         viewModelScope.launch {
-            Store.changes.collect { loadMonth() }
+            Store.changes.collect {
+                loadMonth()
+                if (query.isNotBlank()) runSearch()
+            }
         }
     }
 
     private suspend fun loadMonth() {
         val ym = month
         val (from, to) = Jalali.range(ym)
+        val (pf, pt) = Jalali.range(ym.prev())
         val list = withContext(Dispatchers.IO) { db.query(from, to) }
-        if (ym == month) items = list
+        val prev = withContext(Dispatchers.IO) { db.query(pf, pt) }
+        if (ym == month) {
+            items = list
+            prevIncome = prev.filter { it.type == TxType.INCOME }.sumOf { it.amount }
+            prevExpense = prev.filter { it.type == TxType.EXPENSE }.sumOf { it.amount }
+        }
+    }
+
+    private suspend fun runSearch() {
+        val q = Norm.normalize(query)
+        results = if (q.isBlank()) emptyList() else withContext(Dispatchers.IO) { db.search(q) }
+    }
+
+    fun changeMode(m: TxType) {
+        mode = m
+    }
+
+    fun toggleSearch() {
+        searchOpen = !searchOpen
+        if (!searchOpen) {
+            query = ""
+            results = emptyList()
+        }
+    }
+
+    fun search(q: String) {
+        query = q
+        viewModelScope.launch { runSearch() }
     }
 
     private fun changeMonth(ym: Jalali.YM) {

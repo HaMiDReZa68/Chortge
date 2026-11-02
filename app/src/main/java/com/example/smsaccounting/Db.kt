@@ -77,6 +77,20 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         return out
     }
 
+    fun search(q: String): List<Tx> {
+        val like = "%" + q.trim() + "%"
+        val out = ArrayList<Tx>()
+        readableDatabase.query(
+            "tx", null,
+            "deleted = 0 AND (merchant LIKE ? OR body LIKE ? OR category LIKE ?)",
+            arrayOf(like, like, like),
+            null, null, "ts DESC", "300",
+        ).use { c ->
+            while (c.moveToNext()) out.add(c.toTx())
+        }
+        return out
+    }
+
     fun updateCategory(id: Long, category: String) {
         writableDatabase.execSQL("UPDATE tx SET category = ? WHERE id = ?", arrayOf<Any>(category, id))
     }

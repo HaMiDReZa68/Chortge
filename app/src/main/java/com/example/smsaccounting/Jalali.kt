@@ -56,4 +56,23 @@ object Jalali {
         c.timeInMillis = ms
         return Fa.digits("%02d:%02d".format(c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE)))
     }
+
+    fun daysIn(ym: YM): Int {
+        val (a, b) = range(ym)
+        return Math.round((b - a) / 86_400_000.0).toInt()
+    }
+
+    fun dayOf(ms: Long): Int {
+        val c = cal()
+        c.timeInMillis = ms
+        return c.get(Calendar.DAY_OF_MONTH)
+    }
+
+    fun full(ms: Long): String {
+        val c = cal()
+        c.timeInMillis = ms
+        return Fa.digits(
+            "${c.get(Calendar.DAY_OF_MONTH)} ${monthNames[c.get(Calendar.MONTH)]} ${c.get(Calendar.YEAR)}"
+        )
+    }
 }
