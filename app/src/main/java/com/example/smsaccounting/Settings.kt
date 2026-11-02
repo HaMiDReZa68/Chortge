@@ -53,13 +53,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun SettingsScreen(vm: MainViewModel, onBack: (() -> Unit)? = null) {
+fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
     var renaming by remember { mutableStateOf<BankInfo?>(null) }
-    var editCash by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -74,10 +73,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: (() -> Unit)? = null) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (onBack != null) {
-                RoundBtn("›", onBack)
-                Spacer(Modifier.width(12.dp))
-            }
+            RoundBtn("›", onBack)
+            Spacer(Modifier.width(12.dp))
             Text("تنظیمات", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         }
 
@@ -160,38 +157,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: (() -> Unit)? = null) {
                 }
             }
 
-            // ---------- واحد پول ----------
-            Surface(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp,
-            ) {
-                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("💱", fontSize = 22.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("واحد پول", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                    listOf(true to "تومان", false to "ریال").forEach { (isToman, label) ->
-                        val sel = vm.toman == isToman
-                        Box(
-                            Modifier
-                                .padding(start = 8.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(if (sel) Teal1 else MaterialTheme.colorScheme.background)
-                                .clickable { vm.changeToman(isToman) }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                label,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (sel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-
             // ---------- حساب‌ها و بانک‌ها ----------
             Surface(
                 Modifier.fillMaxWidth(),
@@ -212,10 +177,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: (() -> Unit)? = null) {
                     AccountRow(
                         icon = "💵",
                         title = "نقدی",
-                        subtitle = "موجودی: " + Fa.money(if (vm.toman) vm.cashBalance / 10 else vm.cashBalance) +
-                            " " + (if (vm.toman) "تومان" else "ریال"),
+                        subtitle = "با دکمهٔ ＋ در صفحهٔ اصلی ثبت می‌شود",
                     ) {
-                        TextButton(onClick = { editCash = true }) { Text("✎ موجودی اولیه") }
+                        Text("همیشه فعال", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     if (vm.banks.isEmpty()) {
@@ -257,35 +221,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: (() -> Unit)? = null) {
                     }
                 }
             }
-            Spacer(Modifier.height(100.dp))
+            Spacer(Modifier.height(24.dp))
         }
-    }
-
-    if (editCash) {
-        val u = if (vm.toman) 10L else 1L
-        var txt by remember { mutableStateOf(if (vm.cashInitial > 0) (vm.cashInitial / u).toString() else "") }
-        AlertDialog(
-            onDismissRequest = { editCash = false },
-            title = { Text("موجودی اولیهٔ نقدی", fontWeight = FontWeight.Bold) },
-            text = {
-                OutlinedTextField(
-                    value = txt,
-                    onValueChange = { txt = it },
-                    label = { Text("مبلغ (" + (if (vm.toman) "تومان" else "ریال") + ")") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(16.dp),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val n = Norm.normalize(txt).replace(",", "").toLongOrNull() ?: 0L
-                    vm.setCashInitial(n * u)
-                    editCash = false
-                }) { Text("ذخیره") }
-            },
-            dismissButton = { TextButton(onClick = { editCash = false }) { Text("انصراف") } },
-        )
     }
 
     val r = renaming

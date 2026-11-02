@@ -63,25 +63,6 @@ class Prefs(ctx: Context) {
         sp.edit().putString("bn_$sender", name).apply()
     }
 
-    var cashInitial: Long
-        get() = sp.getLong("cash_init", 0L)
-        set(v) {
-            sp.edit().putLong("cash_init", v).apply()
-        }
-
-    /** بودجهٔ ماهانهٔ هر دسته (ریال) */
-    fun budgets(): Map<String, Long> =
-        sp.all
-            .filterKeys { it.startsWith("bud_") }
-            .mapKeys { it.key.removePrefix("bud_") }
-            .mapValues { (it.value as? Long) ?: 0L }
-
-    fun setBudget(category: String, rial: Long) {
-        val e = sp.edit()
-        if (rial <= 0) e.remove("bud_$category") else e.putLong("bud_$category", rial)
-        e.apply()
-    }
-
     /** سقف بودجهٔ ماهانهٔ هر دسته (ریال) */
     fun budgets(): Map<String, Long> =
         sp.all

@@ -48,18 +48,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var budgets by mutableStateOf(prefs.budgets())
         private set
-    var cashInitial by mutableStateOf(prefs.cashInitial)
-        private set
-    var cashBalance by mutableStateOf(0L)
-        private set
-    var bankBalance by mutableStateOf<Map<String, Long>>(emptyMap())
-        private set
-    var recent by mutableStateOf<List<Tx>>(emptyList())
-        private set
-    var todaySpent by mutableStateOf(0L)
-        private set
-    var budgets by mutableStateOf(prefs.budgets())
-        private set
 
     init {
         viewModelScope.launch {
@@ -100,32 +88,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         banks = rows.map { (s, n) ->
             BankInfo(s, prefs.bankName(s) ?: BankNames.guess(s), n, s !in dis, bal[s])
         }
-
-        val (inc, exp) = withContext(Dispatchers.IO) { db.cashSums() }
-        cashInitial = prefs.cashInitial
-        cashBalance = prefs.cashInitial + inc - exp
-        bankBalance = withContext(Dispatchers.IO) { db.lastBalances() }
-        recent = withContext(Dispatchers.IO) { db.recent(40) }.filter { it.sender !in dis }.take(10)
-
-        val c = java.util.Calendar.getInstance()
-        c.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        c.set(java.util.Calendar.MINUTE, 0)
-        c.set(java.util.Calendar.SECOND, 0)
-        c.set(java.util.Calendar.MILLISECOND, 0)
-        val start = c.timeInMillis
-        todaySpent = withContext(Dispatchers.IO) { db.query(start, start + 86_400_000L) }
-            .filter { it.sender !in dis && it.type == TxType.EXPENSE }
-            .sumOf { it.amount }
-    }
-
-    fun setCashInitial(rial: Long) {
-        prefs.cashInitial = rial
-        Store.notifyChanged()
-    }
-
-    fun setBudget(category: String, rial: Long) {
-        prefs.setBudget(category, rial)
-        budgets = prefs.budgets()
     }
 
     fun applyReminder(on: Boolean, h: Int, m: Int) {
