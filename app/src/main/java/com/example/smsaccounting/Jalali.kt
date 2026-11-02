@@ -1,10 +1,12 @@
 package com.example.smsaccounting
 
 import android.icu.util.Calendar
-import android.icu.util.PersianCalendar
+import android.icu.util.ULocale
 
 /** کار با ماه شمسی (گزارش‌ها بر اساس ماه شمسی هستند) */
 object Jalali {
+    private fun cal(): Calendar = Calendar.getInstance(ULocale("fa_IR@calendar=persian"))
+
     val monthNames = listOf(
         "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
         "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
@@ -16,13 +18,13 @@ object Jalali {
     }
 
     fun ymOf(ms: Long): YM {
-        val c = PersianCalendar()
+        val c = cal()
         c.timeInMillis = ms
         return YM(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1)
     }
 
     private fun startOf(ym: YM): Long {
-        val c = PersianCalendar()
+        val c = cal()
         c.clear()
         c.set(ym.year, ym.month - 1, 1, 0, 0, 0)
         return c.timeInMillis
@@ -34,7 +36,7 @@ object Jalali {
     fun title(ym: YM): String = "${monthNames[ym.month - 1]} ${Fa.digits(ym.year.toString())}"
 
     fun dayTime(ms: Long): String {
-        val c = PersianCalendar()
+        val c = cal()
         c.timeInMillis = ms
         val day = c.get(Calendar.DAY_OF_MONTH)
         val month = monthNames[c.get(Calendar.MONTH)]
