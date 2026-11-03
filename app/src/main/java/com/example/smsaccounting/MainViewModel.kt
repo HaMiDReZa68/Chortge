@@ -291,7 +291,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun remove(tx: Tx) = io { db.softDelete(tx.id) }
+    fun remove(tx: Tx) = io { db.removeTx(tx) }
 
     /** ثبت دستی از/به حساب نقدی (شناسهٔ ۱) یا هر حساب بانکی */
     fun addManual(type: TxType, amountRial: Long, note: String, category: String, sub: String, accountId: Long, ts: Long) {
@@ -321,6 +321,54 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             month = Jalali.ymOf(ts)
             status = "تراکنش ثبت شد"
             Store.notifyChanged()
+        }
+    }
+
+    /** انتقال دستی بین دو حساب خودم؛ مانده هر دو حساب تغییر می‌کند */
+    fun addTransfer(fromId: Long, toId: Long, amountRial: Long, note: String, ts: Long) {
+        io {
+            val from = db.account(fromId)
+            val to = db.account(toId)
+            val key = "tr:" + System.nanoTime()
+            fun leg(acc: Long, type: TxType, sub: String) = Tx(
+                hash = sha1("$key|$acc|${type.name}"),
+                sender = if (acc == 1L) "cash" else "manual",
+                type = type,
+                amount = amountRial,
+                balance = null,
+                merchant = note.trim(),
+                mkey = key,
+                category = "انتقال",
+                ts = ts,
+                body = "انتقال بین حساب‌ها",
+                accountId = acc,
+                sub = sub,
+                note = note.trim(),
+            )
+            db.insert(leg(fromId, TxType.TRANSFER_OUT, "به " + (to?.name ?: "")))
+            db.insert(leg(toId, TxType.TRANSFER_IN, "از " + (from?.name ?: "")))
+            db.adjustBalance(fromId, -amountRial)
+            db.adjustBalance(toId, amountRial)
+        }
+        status = "انتقال ثبت شد"
+    }
+
+    /** پیامکی که انتقال بین حساب‌های خودم بوده؛ فقط همین سمت ثبت می‌شود (سمت دیگر پیامک خودش را دارد) */
+    fun registerTransfer(p: PendingTx, otherId: Long, note: String) {
+        io {
+            val other = db.account(otherId)
+            val out = p.type == TxType.EXPENSE
+            db.insert(
+                Tx(
+                    hash = p.hash, sender = p.sender,
+                    type = if (out) TxType.TRANSFER_OUT else TxType.TRANSFER_IN,
+                    amount = p.amount, balance = p.balance, merchant = p.merchant,
+                    mkey = Categorizer.mkey(p.merchant), category = "انتقال",
+                    ts = p.ts, body = p.body, accountId = p.accountId,
+                    sub = (if (out) "به " else "از ") + (other?.name ?: ""), note = note.trim(),
+                )
+            )
+            db.deletePending(p.id)
         }
     }
 

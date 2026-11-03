@@ -1,6 +1,13 @@
 package com.example.smsaccounting
 
-enum class TxType { INCOME, EXPENSE }
+enum class TxType {
+    INCOME, EXPENSE,
+
+    /** انتقال بین حساب‌های خودم؛ دخل و خرج حساب نمی‌شود */
+    TRANSFER_OUT, TRANSFER_IN;
+
+    val isTransfer get() = this == TRANSFER_OUT || this == TRANSFER_IN
+}
 
 /** مبلغ‌ها همیشه به ریال ذخیره می‌شوند */
 data class Tx(

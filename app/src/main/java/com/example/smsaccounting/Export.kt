@@ -33,7 +33,12 @@ object Export {
                 listOf<Any>(
                     Jalali.ymd(it.ts), Jalali.time(it.ts).let { t -> Norm.normalize(t).map { c -> if (c in '۰'..'۹') '0' + (c - '۰') else c }.joinToString("") },
                     a?.let { x -> if (x.isCash) x.name else x.name + " / " + x.bank } ?: "",
-                    if (it.type == TxType.INCOME) "دخل" else "خرج",
+                    when (it.type) {
+                        TxType.INCOME -> "دخل"
+                        TxType.EXPENSE -> "خرج"
+                        TxType.TRANSFER_OUT -> "انتقال (خروج)"
+                        TxType.TRANSFER_IN -> "انتقال (ورود)"
+                    },
                     it.category, it.sub, it.amount / div, it.balance?.let { b -> b / div } ?: "",
                     it.note, it.merchant,
                 )

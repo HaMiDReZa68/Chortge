@@ -704,7 +704,8 @@ private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, un
 
 @Composable
 internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, account: String = "", onClick: () -> Unit) {
-    val isIncome = tx.type == TxType.INCOME
+    val isIncome = tx.type == TxType.INCOME || tx.type == TxType.TRANSFER_IN
+    val neutral = tx.type.isTransfer
     Surface(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -737,7 +738,7 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     (if (isIncome) "+" else "−") + amountText,
-                    color = if (isIncome) Green else Red,
+                    color = if (neutral) MaterialTheme.colorScheme.onSurfaceVariant else if (isIncome) Green else Red,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                 )

@@ -265,6 +265,26 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         )
     }
 
+    /** حذف تراکنش (و طرف دیگر انتقال دستی)؛ مانده‌ی ثبت‌های دستی برگردانده می‌شود */
+    fun removeTx(tx: Tx) {
+        val d = writableDatabase
+        val rows = ArrayList<Tx>()
+        if (tx.mkey.startsWith("tr:")) {
+            d.query("tx", null, "mkey = ? AND deleted = 0", arrayOf(tx.mkey), null, null, null).use { c ->
+                while (c.moveToNext()) rows.add(c.toTx())
+            }
+        } else {
+            rows.add(tx)
+        }
+        for (r in rows) {
+            d.execSQL("UPDATE tx SET deleted = 1 WHERE id = ?", arrayOf<Any>(r.id))
+            if (r.sender == "manual") {
+                val plus = r.type == TxType.INCOME || r.type == TxType.TRANSFER_IN
+                adjustBalance(r.accountId, if (plus) -r.amount else r.amount)
+            }
+        }
+    }
+
     fun softDelete(id: Long) {
         writableDatabase.execSQL("UPDATE tx SET deleted = 1 WHERE id = ?", arrayOf<Any>(id))
     }
@@ -272,7 +292,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
     /** مجموع خالص تراکنش‌های نقدی (دخل منهای خرج) */
     fun cashNet(): Long {
         readableDatabase.rawQuery(
-            "SELECT COALESCE(SUM(CASE type WHEN 'INCOME' THEN amount ELSE -amount END), 0) " +
+            "SELECT COALESCE(SUM(CASE WHEN type IN ('INCOME','TRANSFER_IN') THEN amount ELSE -amount END), 0) " +
                 "FROM tx WHERE account_id = 1 AND deleted = 0",
             null,
         ).use { c -> return if (c.moveToFirst()) c.getLong(0) else 0L }
