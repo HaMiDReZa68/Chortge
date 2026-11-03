@@ -85,6 +85,7 @@ fun AddAccountPage(vm: MainViewModel, onBack: () -> Unit) {
     var bank by remember { mutableStateOf("") }
     var sender by remember { mutableStateOf("") }
     var match by remember { mutableStateOf("") }
+    var balText by remember { mutableStateOf("") }
     var readOld by remember { mutableStateOf(true) }
     var since by remember { mutableStateOf(Jalali.startOfDay(System.currentTimeMillis() - 30L * 86_400_000L)) }
     LaunchedEffect(Unit) { vm.scanSenders() }
@@ -99,6 +100,9 @@ fun AddAccountPage(vm: MainViewModel, onBack: () -> Unit) {
             Field(name, { name = it }, "نام حساب (مثلاً حقوق، جاری)")
             Spacer(Modifier.height(10.dp))
             Field(bank, { bank = it }, "نام بانک")
+            Spacer(Modifier.height(10.dp))
+            Field(balText, { balText = it }, "مانده فعلی حساب (${if (vm.toman) "تومان" else "ریال"})", number = true)
+            Hint("با هر پیامک بعدی، مانده از متن پیامک به‌روز می‌شود.")
         }
         SectionCard { SenderPicker(vm, sender, { sender = it }, match, { match = it }) }
         SectionCard {
@@ -115,7 +119,8 @@ fun AddAccountPage(vm: MainViewModel, onBack: () -> Unit) {
             if (vm.busy) "در حال کار…" else "ایجاد حساب",
             enabled = name.isNotBlank() && sender.isNotBlank() && !vm.busy,
         ) {
-            vm.createAccount(name, bank.ifBlank { BankNames.guess(sender) }, sender, match, if (readOld) since else null)
+            vm.createAccount(name, bank.ifBlank { BankNames.guess(sender) }, sender, match, if (readOld) since else null,
+                if (balText.isBlank()) null else parseAmount(balText).let { if (vm.toman) it * 10 else it })
             onBack()
         }
     }
@@ -178,6 +183,7 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
     edit?.let { a ->
         var n by remember(a.id) { mutableStateOf(a.name) }
         var b by remember(a.id) { mutableStateOf(a.bank) }
+        var bal by remember(a.id) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { edit = null },
             shape = RoundedCornerShape(24.dp),
@@ -187,11 +193,13 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
                     Field(n, { n = it }, "نام حساب")
                     Spacer(Modifier.height(8.dp))
                     Field(b, { b = it }, "نام بانک")
+                    Spacer(Modifier.height(8.dp))
+                    Field(bal, { bal = it }, "اصلاح مانده (${if (vm.toman) "تومان" else "ریال"}، اختیاری)", number = true)
                 }
             },
             confirmButton = {
                 TextButton(enabled = n.isNotBlank(), onClick = {
-                    vm.renameAccount(a.id, n, b)
+                    vm.renameAccount(a.id, n, b, if (bal.isBlank()) null else parseAmount(bal).let { if (vm.toman) it * 10 else it })
                     edit = null
                 }) { Text("ذخیره") }
             },

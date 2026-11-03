@@ -191,11 +191,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** حساب جدید + اتصال سرشماره + (اختیاری) خواندن پیامک‌های قدیمی از تاریخ مشخص */
-    fun createAccount(name: String, bank: String, sender: String, match: String, sinceMs: Long?) {
+    fun createAccount(name: String, bank: String, sender: String, match: String, sinceMs: Long?, balanceRial: Long?) {
         viewModelScope.launch {
             busy = true
             val n = withContext(Dispatchers.IO) {
-                val id = db.addAccount(name.trim(), bank.trim())
+                val id = db.addAccount(name.trim(), bank.trim(), balanceRial)
                 if (sender.isNotBlank()) db.addSource(sender, id, match.trim())
                 if (sinceMs != null && sender.isNotBlank()) {
                     try {
@@ -234,7 +234,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun renameAccount(id: Long, name: String, bank: String) = io { db.updateAccount(id, name.trim(), bank.trim()) }
+    fun renameAccount(id: Long, name: String, bank: String, balanceRial: Long?) = io { db.updateAccount(id, name.trim(), bank.trim(), balanceRial) }
+
+    fun accName(id: Long): String = accounts.firstOrNull { it.id == id }?.name ?: ""
 
     fun deleteAccount(id: Long) = io { db.deleteAccount(id) }
 
@@ -291,31 +293,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun remove(tx: Tx) = io { db.softDelete(tx.id) }
 
-    fun addCash(type: TxType, amountRial: Long, note: String, category: String, sub: String) {
+    /** ثبت دستی از/به حساب نقدی (شناسهٔ ۱) یا هر حساب بانکی */
+    fun addManual(type: TxType, amountRial: Long, note: String, category: String, sub: String, accountId: Long, ts: Long) {
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
             val n = note.trim()
             withContext(Dispatchers.IO) {
+                val cash = accountId == 1L
                 db.insert(
                     Tx(
-                        hash = sha1("cash|$now|${System.nanoTime()}"),
-                        sender = "cash",
+                        hash = sha1("manual|$ts|${System.nanoTime()}"),
+                        sender = if (cash) "cash" else "manual",
                         type = type,
                         amount = amountRial,
                         balance = null,
                         merchant = n,
                         mkey = Categorizer.mkey(n),
                         category = category,
-                        ts = now,
-                        body = if (n.isEmpty()) "تراکنش نقدی" else "تراکنش نقدی: $n",
-                        accountId = 1,
+                        ts = ts,
+                        body = if (n.isEmpty()) "ثبت دستی" else "ثبت دستی: $n",
+                        accountId = accountId,
                         sub = sub,
                         note = n,
                     )
                 )
+                db.adjustBalance(accountId, if (type == TxType.INCOME) amountRial else -amountRial)
             }
-            month = Jalali.ymOf(now)
-            status = "تراکنش نقدی ثبت شد"
+            month = Jalali.ymOf(ts)
+            status = "تراکنش ثبت شد"
             Store.notifyChanged()
         }
     }

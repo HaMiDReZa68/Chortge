@@ -179,7 +179,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                 )
             }
             items(vm.results, key = { it.id }) { tx ->
-                TxRow(tx, show(tx.amount), unit, withDate = true) { onPick(tx) }
+                TxRow(tx, show(tx.amount), unit, withDate = true, account = vm.accName(tx.accountId)) { onPick(tx) }
             }
             return@LazyColumn
         }
@@ -259,7 +259,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
             }
         }
         items(vm.items.take(8), key = { it.id }) { tx ->
-            TxRow(tx, show(tx.amount), unit) { onPick(tx) }
+            TxRow(tx, show(tx.amount), unit, account = vm.accName(tx.accountId)) { onPick(tx) }
         }
     }
 }

@@ -8,16 +8,29 @@ android {
     namespace = "com.example.smsaccounting"
     compileSdk = 34
 
+    signingConfigs {
+        create("fixed") {
+            storeFile = file("release-key.jks")
+            storePassword = "chortge123"
+            keyAlias = "chortge"
+            keyPassword = "chortge123"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.smsaccounting"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt() + 100
         versionName = "1.0"
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("fixed")
+        }
         release {
+            signingConfig = signingConfigs.getByName("fixed")
             isMinifyEnabled = false
         }
     }

@@ -175,17 +175,20 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
     }
     var showAdd by remember { mutableStateOf(false) }
 
-    val list = vm.items
+    var accFilter by remember { mutableStateOf(0L) }
+    var selCats by remember(vm.mode) { mutableStateOf(setOf<String>()) }
+    val list = vm.items.filter { accFilter == 0L || it.accountId == accFilter }
     val income = list.filter { it.type == TxType.INCOME }.sumOf { it.amount }
     val expense = list.filter { it.type == TxType.EXPENSE }.sumOf { it.amount }
     val isExp = vm.mode == TxType.EXPENSE
-    val modeList = list.filter { it.type == vm.mode }
+    val modeList = list.filter { it.type == vm.mode && (selCats.isEmpty() || it.category in selCats) }
+    val shownList = if (selCats.isEmpty()) list else modeList
     val modeTotal = modeList.sumOf { it.amount }
     val byCat = modeList
         .groupBy { it.category }
         .map { (k, v) -> k to v.sumOf { it.amount } }
         .sortedByDescending { it.second }
-    val byDay = list.groupBy { Jalali.dayLabel(it.ts) }
+    val byDay = shownList.groupBy { Jalali.dayLabel(it.ts) }
 
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
     val unit = if (vm.toman) "تومان" else "ریال"
@@ -310,7 +313,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                         )
                     }
                     items(vm.results, key = { it.id }) { tx ->
-                        TxRow(tx, show(tx.amount), unit, withDate = true) { selected = tx }
+                        TxRow(tx, show(tx.amount), unit, withDate = true, account = vm.accName(tx.accountId)) { selected = tx }
                     }
                 }
             } else {
@@ -331,6 +334,24 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
 
                 Column(Modifier.padding(16.dp)) {
                     ModeToggle(vm.mode, vm::changeMode)
+                    Spacer(Modifier.height(10.dp))
+                    Text("حساب", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    ChipRow {
+                        Chip("همه", accFilter == 0L) { accFilter = 0L }
+                        vm.accounts.forEach { a -> Chip(a.name, accFilter == a.id) { accFilter = a.id } }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("دسته (یک یا چند مورد)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    ChipRow {
+                        Chip("همه", selCats.isEmpty()) { selCats = emptySet() }
+                        vm.cats.filter { it.type == vm.mode && it.parentId == 0L }.forEach { c ->
+                            Chip(c.name, c.name in selCats, Look.color(c.name)) {
+                                selCats = if (c.name in selCats) selCats - c.name else selCats + c.name
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -409,7 +430,11 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                             Spacer(Modifier.height(18.dp))
                             byCat.forEachIndexed { i, (cat, sum) ->
                                 if (i > 0) Spacer(Modifier.height(14.dp))
-                                CategoryRow(cat, sum, modeTotal, show(sum), unit)
+                                val split = modeList.filter { it.category == cat }
+                                    .groupBy { vm.accName(it.accountId) }
+                                    .map { (n, l) -> n + ": " + show(l.sumOf { it.amount }) }
+                                    .joinToString(" · ")
+                                CategoryRow(cat, sum, modeTotal, show(sum), unit, split)
                             }
                         }
                     }
@@ -417,9 +442,9 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             }
 
             // ---- تراکنش‌ها ----
-            item { SectionTitle("تراکنش‌ها (" + Fa.digits(list.size.toString()) + ")") }
+            item { SectionTitle("تراکنش‌ها (" + Fa.digits(shownList.size.toString()) + ")") }
 
-            if (list.isEmpty()) {
+            if (shownList.isEmpty()) {
                 item {
                     Text(
                         "در این ماه تراکنشی ثبت نشده است.",
@@ -443,7 +468,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                     )
                 }
                 items(txs, key = { it.id }) { tx ->
-                    TxRow(tx, show(tx.amount), unit) { selected = tx }
+                    TxRow(tx, show(tx.amount), unit, account = vm.accName(tx.accountId)) { selected = tx }
                 }
             }
             }
@@ -633,7 +658,7 @@ private fun Donut(data: List<Pair<String, Long>>, total: Long, totalText: String
 }
 
 @Composable
-private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, unit: String) {
+private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, unit: String, split: String = "") {
     val frac = if (total > 0) sum.toFloat() / total.toFloat() else 0f
     val color = Look.color(cat)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -648,6 +673,7 @@ private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, un
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (split.isNotBlank()) Text(split, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -677,7 +703,7 @@ private fun CategoryRow(cat: String, sum: Long, total: Long, sumText: String, un
 }
 
 @Composable
-internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, onClick: () -> Unit) {
+internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean = false, account: String = "", onClick: () -> Unit) {
     val isIncome = tx.type == TxType.INCOME
     Surface(
         modifier = Modifier
@@ -701,7 +727,7 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
                     fontSize = 14.sp,
                 )
                 Text(
-                    (if (tx.sender == "cash") "💵 نقدی · " else "") +
+                    (if (account.isNotBlank()) (if (tx.accountId == 1L) "💵 " else "🏦 ") + account + " · " else "") +
                         (tx.category + (if (tx.sub.isNotBlank()) " › " + tx.sub else "") + " · " +
                             (if (withDate) Jalali.full(tx.ts) else Jalali.time(tx.ts))),
                     fontSize = 11.sp,

@@ -360,6 +360,8 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
     var note by remember { mutableStateOf("") }
     var cat by remember { mutableStateOf<String?>(null) }
     var sub by remember { mutableStateOf("") }
+    var accId by remember { mutableStateOf(1L) }
+    var ts by remember { mutableStateOf(System.currentTimeMillis()) }
     val first = vm.cats.firstOrNull { it.type == type && it.parentId == 0L }?.name ?: ""
     val auto = remember(type, note) { if (note.isBlank()) null else vm.suggest(type, note) }
     val effCat = cat ?: auto?.category ?: first
@@ -371,7 +373,7 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("ثبت تراکنش نقدی", fontWeight = FontWeight.Bold) },
+        title = { Text("ثبت تراکنش دستی", fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 ModeToggle(type) {
@@ -380,7 +382,22 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                     sub = ""
                 }
                 Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    if (type == TxType.EXPENSE) "از کدام حساب؟" else "به کدام حساب واریز شد؟",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                ChipRow {
+                    vm.accounts.forEach { a ->
+                        Chip((if (a.isCash) "💵 " else "🏦 ") + a.name, accId == a.id) { accId = a.id }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
                 Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
+                Spacer(Modifier.height(10.dp))
+                DateTimeRow("تاریخ و ساعت", ts, withTime = true) { ts = it }
                 Spacer(Modifier.height(10.dp))
                 Field(note, { note = it }, "توضیحات (مثلاً نانوایی)")
                 Spacer(Modifier.height(12.dp))
@@ -394,7 +411,7 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
             TextButton(
                 enabled = amount > 0 && effCat.isNotEmpty(),
                 onClick = {
-                    vm.addCash(type, if (vm.toman) amount * 10 else amount, note, effCat, effSub)
+                    vm.addManual(type, if (vm.toman) amount * 10 else amount, note, effCat, effSub, accId, ts)
                     onDismiss()
                 },
             ) { Text("ثبت") }

@@ -200,7 +200,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
     /** true اگر تراکنش جدید ثبت شد؛ پیامک تکراری نادیده گرفته می‌شود */
     fun insert(t: Tx): Boolean {
         val d = writableDatabase
-        val exists = t.sender != "cash" && d.rawQuery(
+        val exists = t.sender != "cash" && t.sender != "manual" && d.rawQuery(
             "SELECT 1 FROM tx WHERE sender = ? AND body = ? AND ts BETWEEN ? AND ? LIMIT 1",
             arrayOf(t.sender, t.body, (t.ts - 120_000).toString(), (t.ts + 120_000).toString()),
         ).use { it.moveToFirst() }
@@ -325,20 +325,38 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
 
     fun account(id: Long): Account? = accounts().firstOrNull { it.id == id }
 
-    fun addAccount(name: String, bank: String): Long =
+    fun addAccount(name: String, bank: String, balance: Long? = null): Long =
         writableDatabase.insert(
             "account", null,
             ContentValues().apply {
                 put("name", name)
                 put("bank", bank)
                 put("kind", "BANK")
+                if (balance != null) {
+                    put("last_balance", balance)
+                    put("last_balance_ts", System.currentTimeMillis())
+                }
             }
         )
 
-    fun updateAccount(id: Long, name: String, bank: String) {
+    fun updateAccount(id: Long, name: String, bank: String, balance: Long? = null) {
         writableDatabase.execSQL(
             "UPDATE account SET name = ?, bank = ? WHERE id = ?",
             arrayOf<Any>(name, bank, id),
+        )
+        if (balance != null) {
+            writableDatabase.execSQL(
+                "UPDATE account SET last_balance = ?, last_balance_ts = ? WHERE id = ?",
+                arrayOf<Any>(balance, System.currentTimeMillis(), id),
+            )
+        }
+    }
+
+    /** ثبت دستی: مانده‌ی شناخته‌شده‌ی حساب بانکی را کم یا زیاد می‌کند */
+    fun adjustBalance(id: Long, delta: Long) {
+        writableDatabase.execSQL(
+            "UPDATE account SET last_balance = last_balance + ? WHERE id = ? AND last_balance IS NOT NULL AND kind != 'CASH'",
+            arrayOf<Any>(delta, id),
         )
     }
 
