@@ -63,8 +63,13 @@ object Categorizer {
         ),
     )
 
-    val expenseCategories: List<String> = rules.map { it.first } + OTHER
-    val incomeCategories: List<String> = listOf(SALARY, INCOME)
+    val builtinExpense: List<String> = rules.map { it.first } + OTHER
+    val builtinIncome: List<String> = listOf(SALARY, INCOME)
+
+    data class Result(val category: String, val sub: String = "")
+
+    /** existing: نام دسته‌های اصلی همان نوع؛ custom: (دسته، زیرشاخه، کلمات کلیدی) تعریف‌شده توسط کاربر */
+    class Ctx(val existing: Set<String>, val custom: List<Triple<String, String, List<String>>>)
 
     /** کلید یادگیری برای فروشنده/پذیرنده */
     fun mkey(merchant: String): String = Norm.normalize(merchant).lowercase().take(24).trim()
@@ -74,19 +79,32 @@ object Categorizer {
         body: String,
         merchant: String,
         learned: Map<String, String>,
-    ): String {
+        ctx: Ctx,
+    ): Result {
         val text = Norm.normalize(body).lowercase()
-        if (type == TxType.INCOME) {
-            return if (text.contains("حقوق") || text.contains("salary")) SALARY else INCOME
+        if (type == TxType.EXPENSE) {
+            val key = mkey(merchant)
+            if (key.isNotEmpty()) {
+                val l = learned[key]
+                if (l != null) {
+                    val parts = l.split("|", limit = 2)
+                    if (parts[0] in ctx.existing) return Result(parts[0], parts.getOrElse(1) { "" })
+                }
+            }
         }
-        val key = mkey(merchant)
-        if (key.isNotEmpty()) {
-            val l = learned[key]
-            if (l != null) return l
+        for ((cat, sub, kws) in ctx.custom) {
+            if (kws.any { it.isNotBlank() && text.contains(it) }) return Result(cat, sub)
+        }
+        if (type == TxType.INCOME) {
+            val pick = if (text.contains("حقوق") || text.contains("salary")) SALARY else INCOME
+            return Result(fallback(pick, ctx))
         }
         for ((cat, words) in rules) {
-            if (words.any { text.contains(it) }) return cat
+            if (cat in ctx.existing && words.any { text.contains(it) }) return Result(cat)
         }
-        return OTHER
+        return Result(fallback(OTHER, ctx))
     }
+
+    private fun fallback(name: String, ctx: Ctx): String =
+        if (name in ctx.existing) name else ctx.existing.firstOrNull() ?: name
 }

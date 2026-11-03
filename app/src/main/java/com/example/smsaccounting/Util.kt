@@ -7,6 +7,16 @@ import java.util.Locale
 object Norm {
     private val spaces = Regex("[ \\t]+")
 
+    /** شناسهٔ فرستنده برای مقایسه: برای شماره‌ها ۱۰ رقم آخر، برای نام‌ها حروف کوچک */
+    fun sender(s: String): String {
+        val t = s.trim().lowercase().replace(" ", "").replace("-", "")
+        return if (t.isNotEmpty() && t.all { it.isDigit() || it == '+' }) {
+            t.filter { it.isDigit() }.takeLast(10)
+        } else {
+            t
+        }
+    }
+
     fun normalize(s: String): String {
         val sb = StringBuilder(s.length)
         for (ch in s) {

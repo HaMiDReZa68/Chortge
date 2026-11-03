@@ -76,4 +76,38 @@ class Prefs(ctx: Context) {
         if (rial > 0) e.putLong("bg_$category", rial) else e.remove("bg_$category")
         e.apply()
     }
+
+    /** همهٔ تنظیمات به‌جز تاریخ آخرین بررسی، برای پشتیبان */
+    fun dump(): org.json.JSONObject {
+        val o = org.json.JSONObject()
+        for ((k, v) in sp.all) {
+            if (k == "last_import") continue
+            val e = org.json.JSONObject()
+            when (v) {
+                is Boolean -> e.put("t", "b").put("v", v)
+                is Int -> e.put("t", "i").put("v", v)
+                is Long -> e.put("t", "l").put("v", v)
+                is String -> e.put("t", "s").put("v", v)
+                else -> continue
+            }
+            o.put(k, e)
+        }
+        return o
+    }
+
+    fun load(o: org.json.JSONObject) {
+        val ed = sp.edit()
+        val keys = o.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val e = o.optJSONObject(k) ?: continue
+            when (e.optString("t")) {
+                "b" -> ed.putBoolean(k, e.getBoolean("v"))
+                "i" -> ed.putInt(k, e.getInt("v"))
+                "l" -> ed.putLong(k, e.getLong("v"))
+                "s" -> ed.putString(k, e.getString("v"))
+            }
+        }
+        ed.apply()
+    }
 }

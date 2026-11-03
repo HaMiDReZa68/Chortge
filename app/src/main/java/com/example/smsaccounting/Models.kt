@@ -15,15 +15,74 @@ data class Tx(
     val category: String,
     val ts: Long,
     val body: String,
+    val accountId: Long = 0,
+    val sub: String = "",
+    val note: String = "",
 )
 
-data class BankInfo(
-    val sender: String,
+/** حساب بانکی یا «نقدی» (kind = CASH، شناسهٔ ۱) */
+data class Account(
+    val id: Long,
     val name: String,
-    val count: Int,
-    val enabled: Boolean,
-    val balance: Long? = null,
+    val bank: String,
+    val kind: String,
+    val lastBalance: Long?,
+    val lastBalanceTs: Long,
+) {
+    val isCash: Boolean get() = kind == "CASH"
+}
+
+/** سرشمارهٔ پیامک که به یک حساب وصل است؛ match اختیاری است (مثلاً ۴ رقم آخر کارت) */
+data class SmsSource(val id: Long, val sender: String, val accountId: Long, val match: String)
+
+/** پیامک تراکنشی که منتظر ثبت بابت و توضیحات توسط کاربر است */
+data class PendingTx(
+    val id: Long,
+    val hash: String,
+    val accountId: Long,
+    val sender: String,
+    val type: TxType,
+    val amount: Long,
+    val balance: Long?,
+    val merchant: String,
+    val category: String,
+    val sub: String,
+    val ts: Long,
+    val body: String,
 )
+
+data class Category(
+    val id: Long,
+    val name: String,
+    val type: TxType,
+    val parentId: Long,
+    val icon: String,
+    val keywords: String,
+)
+
+enum class ObKind(val label: String, val icon: String) {
+    CHEQUE("چک", "🧾"),
+    CREDIT("طلب", "📥"),
+    DEBT("بدهی", "📤"),
+    INSTALLMENT("قسط", "📆"),
+    LOAN("وام", "🏦"),
+}
+
+data class Obligation(
+    val id: Long,
+    val kind: ObKind,
+    val title: String,
+    val party: String,
+    val amount: Long,
+    val dueTs: Long,
+    val note: String,
+    val done: Boolean,
+    val repeat: Boolean,
+    val remaining: Int,
+    val created: Long,
+)
+
+data class SenderCandidate(val sender: String, val count: Int, val lastTs: Long, val sample: String)
 
 /** حدس نام بانک از روی شناسهٔ فرستندهٔ پیامک؛ اگر نشناسیم همان شناسه نمایش داده می‌شود */
 object BankNames {

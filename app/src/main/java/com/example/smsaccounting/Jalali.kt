@@ -75,4 +75,41 @@ object Jalali {
             "${c.get(Calendar.DAY_OF_MONTH)} ${monthNames[c.get(Calendar.MONTH)]} ${c.get(Calendar.YEAR)}"
         )
     }
+
+    /** [سال، ماه، روز، ساعت، دقیقه] */
+    fun parts(ms: Long): IntArray {
+        val c = cal()
+        c.timeInMillis = ms
+        return intArrayOf(
+            c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH),
+            c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE),
+        )
+    }
+
+    fun toMillis(y: Int, m: Int, d: Int, h: Int = 0, mi: Int = 0): Long {
+        val c = cal()
+        c.clear()
+        c.set(y, m - 1, d, h, mi, 0)
+        return c.timeInMillis
+    }
+
+    fun startOfDay(ms: Long): Long {
+        val p = parts(ms)
+        return toMillis(p[0], p[1], p[2])
+    }
+
+    fun addMonths(ms: Long, n: Int): Long {
+        val c = cal()
+        c.timeInMillis = ms
+        c.add(Calendar.MONTH, n)
+        return c.timeInMillis
+    }
+
+    /** تاریخ با ارقام لاتین مثل 1405/08/12 (برای فایل‌های خروجی) */
+    fun ymd(ms: Long): String {
+        val p = parts(ms)
+        return java.lang.String.format(java.util.Locale.US, "%04d/%02d/%02d", p[0], p[1], p[2])
+    }
+
+    fun dateTime(ms: Long): String = full(ms) + " – " + time(ms)
 }

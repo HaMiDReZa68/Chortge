@@ -44,7 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val navItems = listOf("🏠" to "خانه", "📊" to "گزارش", "🐷" to "بودجه")
+private val navItems = listOf("🏠" to "خانه", "📊" to "گزارش", "🐷" to "بودجه", "⏰" to "سررسید")
 
 @Composable
 fun BottomNav(tab: Int, onTab: (Int) -> Unit, modifier: Modifier) {
@@ -86,25 +86,19 @@ fun BottomNav(tab: Int, onTab: (Int) -> Unit, modifier: Modifier) {
 }
 
 @Composable
-private fun AccountCard(icon: String, name: String, value: String, enabled: Boolean) {
+private fun AccountCard(icon: String, name: String, value: String) {
     Column(
         Modifier
             .width(150.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(alpha = if (enabled) 0.95f else 0.55f))
+            .background(Color.White.copy(alpha = 0.95f))
             .padding(14.dp)
     ) {
         Text(icon, fontSize = 22.sp)
         Spacer(Modifier.height(8.dp))
+        Text(name, fontSize = 12.sp, color = Color(0xFF4B5B57), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-            name,
-            fontSize = 12.sp,
-            color = Color(0xFF4B5B57),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            if (enabled) value else "غیرفعال",
+            value,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF12201C),
@@ -115,10 +109,12 @@ private fun AccountCard(icon: String, name: String, value: String, enabled: Bool
 }
 
 @Composable
-fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onPick: (Tx) -> Unit) {
+fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, onTab: (Int) -> Unit, onPick: (Tx) -> Unit) {
     val unit = if (vm.toman) "تومان" else "ریال"
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
-    val total = vm.cashNet + vm.banks.filter { it.enabled }.sumOf { it.balance ?: 0L }
+    val banks = vm.accounts.filter { !it.isCash }
+    val total = vm.cashNet + banks.sumOf { it.lastBalance ?: 0L }
+    val upcoming = vm.obligations.filter { !it.done }.sortedBy { it.dueTs }.take(3)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 160.dp)) {
         item {
@@ -131,13 +127,9 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onPick: (Tx) -> Unit) {
                     .padding(top = 16.dp, bottom = 22.dp),
             ) {
                 Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "خانه",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Text("خانه", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                    RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
+                    Spacer(Modifier.width(8.dp))
                     RoundBtn("⚙", onSettings)
                 }
                 Spacer(Modifier.height(18.dp))
@@ -155,22 +147,8 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onPick: (Tx) -> Unit) {
                         fontSize = 34.sp,
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        unit,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
+                    Text(unit, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
                 }
-                Text(
-                    "بر اساس آخرین مانده در پیامک هر بانک و تراکنش‌های نقدی",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                )
                 Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier
@@ -178,22 +156,96 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onPick: (Tx) -> Unit) {
                         .padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AccountCard("💵", "نقدی", show(vm.cashNet) + " " + unit, true)
-                    vm.banks.forEach { b ->
-                        val bal = b.balance
-                        AccountCard(
-                            "🏦",
-                            b.name,
-                            if (bal != null) show(bal) + " " + unit else "مانده نامشخص",
-                            b.enabled,
-                        )
+                    AccountCard("💵", "نقدی", show(vm.cashNet) + " " + unit)
+                    banks.forEach { b ->
+                        val bal = b.lastBalance
+                        AccountCard("🏦", b.name + if (b.bank.isNotBlank()) " · " + b.bank else "", if (bal != null) show(bal) + " " + unit else "مانده نامشخص")
                     }
                 }
             }
         }
 
-        item { SectionTitle("آخرین تراکنش‌ها") }
+        if (vm.searchOpen) {
+            item {
+                OutlinedTextField(
+                    value = vm.query,
+                    onValueChange = vm::search,
+                    placeholder = { Text("جستجو در شرح، دسته، توضیحات یا متن پیامک") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                )
+            }
+            items(vm.results, key = { it.id }) { tx ->
+                TxRow(tx, show(tx.amount), unit, withDate = true) { onPick(tx) }
+            }
+            return@LazyColumn
+        }
 
+        if (banks.isEmpty()) {
+            item {
+                SectionCard(Modifier.padding(16.dp).clickable { onNav(Page.ADD_ACCOUNT) }) {
+                    Text("🏦 بانک اضافه کن", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Hint("حساب را بساز و سرشمارهٔ پیامک بانک را انتخاب کن تا از این به بعد با هر پیامک اعلان بگیری.")
+                }
+            }
+        }
+
+        if (vm.pendings.isNotEmpty()) {
+            item {
+                Row(
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFFFFF4D6))
+                        .clickable { onNav(Page.PENDING) }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        Fa.digits(vm.pendings.size.toString()) + " تراکنش جدید منتظر ثبت بابت است",
+                        color = Color(0xFF5B4A00),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("ثبت ›", color = Color(0xFF5B4A00), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (upcoming.isNotEmpty()) {
+            item { SectionTitle("سررسیدهای نزدیک") }
+            items(upcoming, key = { "ob_" + it.id }) { o ->
+                Row(
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .clickable { onTab(3) }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(o.kind.icon, fontSize = 20.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(o.kind.label + ": " + o.title, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            Jalali.dateTime(o.dueTs),
+                            fontSize = 11.sp,
+                            color = if (o.dueTs < System.currentTimeMillis()) Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (o.amount > 0) Text(show(o.amount), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+
+        item { SectionTitle("آخرین تراکنش‌ها") }
         if (vm.items.isEmpty()) {
             item {
                 Text(
@@ -206,7 +258,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onPick: (Tx) -> Unit) {
                 )
             }
         }
-        items(vm.items.take(6), key = { it.id }) { tx ->
+        items(vm.items.take(8), key = { it.id }) { tx ->
             TxRow(tx, show(tx.amount), unit) { onPick(tx) }
         }
     }
@@ -222,7 +274,7 @@ fun BudgetTab(vm: MainViewModel) {
         .filter { it.type == TxType.EXPENSE }
         .groupBy { it.category }
         .mapValues { e -> e.value.sumOf { it.amount } }
-    val cats = Categorizer.expenseCategories
+    val cats = vm.cats.filter { it.type == TxType.EXPENSE && it.parentId == 0L }.map { it.name }
     val limited = cats.filter { (vm.budgets[it] ?: 0L) > 0L }
     val totalLimit = limited.sumOf { vm.budgets[it] ?: 0L }
     val totalSpent = limited.sumOf { spent[it] ?: 0L }

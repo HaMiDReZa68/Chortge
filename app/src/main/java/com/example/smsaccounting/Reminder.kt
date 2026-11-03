@@ -64,7 +64,6 @@ object Reminder {
         ) return
 
         val prefs = Prefs(ctx)
-        val dis = prefs.disabledSenders()
         val c = Calendar.getInstance()
         c.set(Calendar.HOUR_OF_DAY, 0)
         c.set(Calendar.MINUTE, 0)
@@ -72,7 +71,7 @@ object Reminder {
         c.set(Calendar.MILLISECOND, 0)
         val start = c.timeInMillis
         val spent = Db.get(ctx).query(start, start + 86_400_000L)
-            .filter { it.sender !in dis && it.type == TxType.EXPENSE }
+            .filter { it.type == TxType.EXPENSE }
             .sumOf { it.amount }
 
         val unit = if (prefs.toman) "تومان" else "ریال"
@@ -130,5 +129,6 @@ class BootReceiver : BroadcastReceiver() {
         if (a != Intent.ACTION_BOOT_COMPLETED && a != Intent.ACTION_MY_PACKAGE_REPLACED) return
         val app = context.applicationContext
         if (Prefs(app).reminderOn) Reminder.schedule(app)
+        Thread { Alarms.rescheduleAll(app) }.start()
     }
 }

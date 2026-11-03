@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 
-/** هر پیامک جدید که برسد، اگر تراکنش بانکی باشد خودکار ثبت می‌شود */
+/** پیامک جدید از سرشمارهٔ ثبت‌شده: در انتظار ثبت بابت و اعلان */
 class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
@@ -19,7 +19,7 @@ class SmsReceiver : BroadcastReceiver() {
             try {
                 for ((sender, msgs) in grouped) {
                     val body = msgs.joinToString("") { it.messageBody ?: "" }
-                    Importer.handle(context.applicationContext, sender, body, ts)
+                    Importer.handleIncoming(context.applicationContext, sender, body, ts)
                 }
             } finally {
                 pending.finish()

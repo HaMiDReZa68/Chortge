@@ -95,14 +95,21 @@ internal val Red = Color(0xFFE11D48)
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
+    private val openReq = mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        openReq.value = intent.getStringExtra("open")
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        openReq.value = intent?.getStringExtra("open")
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             AppTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    Screen(vm)
+                    Screen(vm, openReq.value) { openReq.value = null }
                 }
             }
         }
@@ -140,20 +147,7 @@ internal fun titleOf(tx: Tx): String =
     tx.merchant.ifBlank { tx.body.replace('\n', ' ').take(40) }
 
 @Composable
-fun Screen(vm: MainViewModel) {
-    val ctx = LocalContext.current
-    fun granted() =
-        ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) ==
-            PackageManager.PERMISSION_GRANTED
-
-    var hasPerm by remember { mutableStateOf(granted()) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { hasPerm = granted() }
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { hasPerm = granted() }
-
-    LaunchedEffect(hasPerm) { if (hasPerm) vm.importSms(false) }
-
+fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
     val snack = remember { SnackbarHostState() }
     LaunchedEffect(vm.status) {
         val s = vm.status
@@ -164,8 +158,21 @@ fun Screen(vm: MainViewModel) {
     }
 
     var selected by remember { mutableStateOf<Tx?>(null) }
-    var showSettings by remember { mutableStateOf(false) }
-    var tab by remember { mutableStateOf(1) }
+    var page by remember { mutableStateOf<Page?>(null) }
+    var tab by remember { mutableStateOf(0) }
+    LaunchedEffect(openReq) {
+        when (openReq) {
+            "pending" -> page = Page.PENDING
+            "obligations" -> {
+                page = null
+                tab = 3
+            }
+        }
+        if (openReq != null) onOpenHandled()
+    }
+    BackHandler(page != null) {
+        page = if (page == Page.ADD_ACCOUNT) Page.ACCOUNTS else null
+    }
     var showAdd by remember { mutableStateOf(false) }
 
     val list = vm.items
@@ -211,16 +218,9 @@ fun Screen(vm: MainViewModel) {
                             fontSize = 18.sp,
                             modifier = Modifier.weight(1f),
                         )
-                        Pill(
-                            text = if (vm.busy) "در حال خواندن…" else "همگام‌سازی",
-                            filled = false,
-                            enabled = hasPerm && !vm.busy,
-                            onClick = { vm.importSms(false) },
-                        )
-                        Spacer(Modifier.width(8.dp))
                         RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
                         Spacer(Modifier.width(8.dp))
-                        RoundBtn("⚙", { showSettings = true })
+                        RoundBtn("⚙", { page = Page.SETTINGS })
                     }
 
                     Spacer(Modifier.height(18.dp))
@@ -282,38 +282,6 @@ fun Screen(vm: MainViewModel) {
                     ) {
                         Pill("تومان", filled = vm.toman, onClick = { vm.changeToman(true) })
                         Pill("ریال", filled = !vm.toman, onClick = { vm.changeToman(false) })
-                    }
-                }
-            }
-
-            // ---- درخواست دسترسی ----
-            if (!hasPerm) {
-                item {
-                    Card(
-                        modifier = Modifier.padding(16.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF4D6)),
-                    ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(
-                                "برای خواندن پیامک‌های بانکی، اجازهٔ دسترسی به پیامک لازم است. " +
-                                    "پیامک‌ها فقط روی همین گوشی پردازش می‌شوند و جایی ارسال نمی‌شوند.",
-                                color = Color(0xFF5B4A00),
-                                fontSize = 13.sp,
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Button(
-                                onClick = {
-                                    launcher.launch(
-                                        arrayOf(
-                                            Manifest.permission.READ_SMS,
-                                            Manifest.permission.RECEIVE_SMS,
-                                        )
-                                    )
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Teal1),
-                            ) { Text("اجازهٔ دسترسی", color = Color.White) }
-                        }
                     }
                 }
             }
@@ -481,12 +449,13 @@ fun Screen(vm: MainViewModel) {
             }
         }
 
-        if (tab == 0) HomeTab(vm, { showSettings = true }) { selected = it }
+        if (tab == 0) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
         if (tab == 2) BudgetTab(vm)
+        if (tab == 3) ObligationsTab(vm)
 
         BottomNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter))
 
-        if (!vm.searchOpen) {
+        if (!vm.searchOpen && tab != 3) {
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
@@ -502,9 +471,15 @@ fun Screen(vm: MainViewModel) {
             }
         }
 
-        if (showSettings) {
-            BackHandler { showSettings = false }
-            SettingsScreen(vm) { showSettings = false }
+        when (page) {
+            Page.SETTINGS -> SettingsScreen(vm, { page = null }, { page = it })
+            Page.ACCOUNTS -> AccountsPage(vm, { page = Page.SETTINGS }, { page = Page.ADD_ACCOUNT })
+            Page.ADD_ACCOUNT -> AddAccountPage(vm) { page = Page.ACCOUNTS }
+            Page.PENDING -> PendingPage(vm) { page = null }
+            Page.CATEGORIES -> CategoriesPage(vm) { page = Page.SETTINGS }
+            Page.EXPORT -> ExportPage(vm) { page = Page.SETTINGS }
+            Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }
+            null -> {}
         }
 
         SnackbarHost(
@@ -515,77 +490,7 @@ fun Screen(vm: MainViewModel) {
 
     if (showAdd) AddCashDialog(vm) { showAdd = false }
 
-    val tx = selected
-    if (tx != null) {
-        AlertDialog(
-            onDismissRequest = { selected = null },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
-            title = {
-                Text(
-                    if (tx.type == TxType.INCOME) "دسته‌بندی درآمد" else "دسته‌بندی هزینه",
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        tx.body,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 6,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    val cats = if (tx.type == TxType.INCOME) {
-                        Categorizer.incomeCategories
-                    } else {
-                        Categorizer.expenseCategories
-                    }
-                    cats.forEach { c ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(
-                                    if (c == tx.category) Look.color(c).copy(alpha = 0.15f) else Color.Transparent
-                                )
-                                .clickable {
-                                    vm.setCategory(tx, c)
-                                    selected = null
-                                }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CatIcon(c, 34)
-                            Spacer(Modifier.width(12.dp))
-                            Text(c, modifier = Modifier.weight(1f))
-                            if (c == tx.category) Text("✓", color = Look.color(c), fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { selected = null }) { Text("بستن") }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = {
-                        vm.toggleType(tx)
-                        selected = null
-                    }) {
-                        Text(if (tx.type == TxType.INCOME) "این هزینه است" else "این درآمد است")
-                    }
-                    TextButton(onClick = {
-                        vm.remove(tx)
-                        selected = null
-                    }) {
-                        Text("حذف", color = Red)
-                    }
-                }
-            },
-        )
-    }
+    selected?.let { TxEditDialog(vm, it) { selected = null } }
 }
 
 @Composable
@@ -600,7 +505,7 @@ internal fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun Pill(
+internal fun Pill(
     text: String,
     filled: Boolean,
     enabled: Boolean = true,
@@ -797,7 +702,8 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
                 )
                 Text(
                     (if (tx.sender == "cash") "💵 نقدی · " else "") +
-                        (if (withDate) "${tx.category} · ${Jalali.full(tx.ts)}" else "${tx.category} · ${Jalali.time(tx.ts)}"),
+                        (tx.category + (if (tx.sub.isNotBlank()) " › " + tx.sub else "") + " · " +
+                            (if (withDate) Jalali.full(tx.ts) else Jalali.time(tx.ts))),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

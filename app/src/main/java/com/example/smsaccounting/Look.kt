@@ -45,8 +45,22 @@ object Look {
         "درآمد" to "💰",
     )
 
-    fun color(cat: String): Color = catColor[cat] ?: Color(0xFFBDBDBD)
-    fun icon(cat: String): String = catIcon[cat] ?: "🧾"
+    @Volatile
+    private var custom: Map<String, String> = emptyMap()
+
+    fun setCustomIcons(m: Map<String, String>) {
+        custom = m
+    }
+
+    private val palette = listOf(
+        Color(0xFF26C6DA), Color(0xFFFF7043), Color(0xFF9CCC65), Color(0xFFAB47BC),
+        Color(0xFF5C6BC0), Color(0xFFEC407A), Color(0xFF8D6E63), Color(0xFF29B6F6),
+    )
+
+    fun color(cat: String): Color =
+        catColor[cat] ?: palette[(cat.hashCode() and 0x7fffffff) % palette.size]
+
+    fun icon(cat: String): String = catIcon[cat] ?: custom[cat]?.takeIf { it.isNotBlank() } ?: "🏷️"
 }
 
 fun Typography.withFont(f: FontFamily) = copy(
