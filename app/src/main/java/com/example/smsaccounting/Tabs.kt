@@ -184,6 +184,26 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
             return@LazyColumn
         }
 
+        vm.update?.let { u ->
+            item {
+                Row(
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFFD9F2E3))
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("نسخهٔ جدید آماده است", color = Color(0xFF14532D), fontWeight = FontWeight.Bold)
+                        Text(u.name, color = Color(0xFF14532D), fontSize = 11.sp)
+                    }
+                    SoftButton(if (vm.updating) "در حال دانلود…" else "به‌روزرسانی", enabled = !vm.updating) { vm.installUpdate() }
+                }
+            }
+        }
+
         if (banks.isEmpty()) {
             item {
                 SectionCard(Modifier.padding(16.dp).clickable { onNav(Page.ADD_ACCOUNT) }) {

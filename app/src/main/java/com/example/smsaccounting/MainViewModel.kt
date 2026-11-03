@@ -62,8 +62,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var scanning by mutableStateOf(false)
         private set
+    var update by mutableStateOf<Updater.Info?>(null)
+        private set
+    var updating by mutableStateOf(false)
+        private set
 
     init {
+        checkUpdate(false)
         viewModelScope.launch {
             Store.changes.collect {
                 loadMonth()
@@ -120,6 +125,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun say(s: String) {
         status = s
+    }
+
+    // ---------------------------------------------------------------- به‌روزرسانی
+
+    fun checkUpdate(manual: Boolean) {
+        viewModelScope.launch {
+            val r = try {
+                withContext(Dispatchers.IO) { Updater.check(ctx) }
+            } catch (e: Exception) {
+                if (manual) status = "بررسی نسخهٔ جدید ممکن نشد (اینترنت را چک کن)"
+                return@launch
+            }
+            update = r
+            if (manual && r == null) status = "نسخهٔ شما آخرین نسخه است"
+        }
+    }
+
+    fun installUpdate() {
+        val info = update ?: return
+        if (updating) return
+        viewModelScope.launch {
+            updating = true
+            try {
+                val f = withContext(Dispatchers.IO) { Updater.download(ctx, info) }
+                if (!Updater.install(ctx, f)) status = "اجازهٔ نصب را بده، بعد دوباره «به‌روزرسانی» را بزن"
+            } catch (e: Exception) {
+                status = "دانلود نسخهٔ جدید ناموفق بود"
+            }
+            updating = false
+        }
     }
 
     // ---------------------------------------------------------------- تنظیمات

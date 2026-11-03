@@ -86,6 +86,20 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onNav: (Page) -> Unit)
                 Chip("ریال", !vm.toman) { vm.changeToman(false) }
             }
         }
+        SectionCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("به‌روزرسانی برنامه", fontWeight = FontWeight.Bold)
+                    Hint("نسخهٔ فعلی: " + Fa.digits((Updater.currentCode(ctx) - 100).toString()) +
+                        (if (vm.update != null) " · نسخهٔ جدید موجود است" else ""))
+                }
+                if (vm.update != null) {
+                    SoftButton(if (vm.updating) "در حال دانلود…" else "نصب", enabled = !vm.updating) { vm.installUpdate() }
+                } else {
+                    SoftButton("بررسی") { vm.checkUpdate(true) }
+                }
+            }
+        }
         listOf(
             Triple("🏦", "حساب‌ها و سرشماره‌های پیامک", Page.ACCOUNTS),
             Triple("🏷️", "دسته‌بندی‌ها و زیرشاخه‌ها", Page.CATEGORIES),
