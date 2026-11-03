@@ -317,15 +317,19 @@ fun TxEditDialog(vm: MainViewModel, tx: Tx, onDismiss: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(10.dp))
-                ModeToggle(type) {
-                    type = it
-                    cat = vm.cats.firstOrNull { c -> c.type == it && c.parentId == 0L }?.name ?: cat
-                    sub = ""
-                }
-                Spacer(Modifier.height(12.dp))
-                CategoryPicker(vm.cats, type, cat, sub) { c, s ->
-                    cat = c
-                    sub = s
+                if (tx.type.isTransfer) {
+                    Text("🔁 انتقال بین حساب‌ها · " + tx.sub, fontWeight = FontWeight.Bold)
+                } else {
+                    ModeToggle(type) {
+                        type = it
+                        cat = vm.cats.firstOrNull { c -> c.type == it && c.parentId == 0L }?.name ?: cat
+                        sub = ""
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    CategoryPicker(vm.cats, type, cat, sub) { c, s ->
+                        cat = c
+                        sub = s
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 Field(note, { note = it }, "توضیحات")
@@ -361,6 +365,8 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
     var cat by remember { mutableStateOf<String?>(null) }
     var sub by remember { mutableStateOf("") }
     var accId by remember { mutableStateOf(1L) }
+    var transfer by remember { mutableStateOf(false) }
+    var toId by remember { mutableStateOf(0L) }
     var ts by remember { mutableStateOf(System.currentTimeMillis()) }
     val first = vm.cats.firstOrNull { it.type == type && it.parentId == 0L }?.name ?: ""
     val auto = remember(type, note) { if (note.isBlank()) null else vm.suggest(type, note) }
@@ -380,11 +386,13 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                     type = it
                     cat = null
                     sub = ""
+                    transfer = false
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
+                Chip("🔁 انتقال بین حساب‌های خودم", transfer) { transfer = !transfer }
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    if (type == TxType.EXPENSE) "از کدام حساب؟" else "به کدام حساب واریز شد؟",
+                    if (transfer) "از کدام حساب؟" else if (type == TxType.EXPENSE) "از کدام حساب؟" else "به کدام حساب واریز شد؟",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -394,23 +402,40 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                         Chip((if (a.isCash) "💵 " else "🏦 ") + a.name, accId == a.id) { accId = a.id }
                     }
                 }
+                if (transfer) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("به کدام حساب؟", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(6.dp))
+                    ChipRow {
+                        vm.accounts.filter { it.id != accId }.forEach { a ->
+                            Chip((if (a.isCash) "💵 " else "🏦 ") + a.name, toId == a.id) { toId = a.id }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
                 Spacer(Modifier.height(10.dp))
                 DateTimeRow("تاریخ و ساعت", ts, withTime = true) { ts = it }
                 Spacer(Modifier.height(10.dp))
                 Field(note, { note = it }, "توضیحات (مثلاً نانوایی)")
-                Spacer(Modifier.height(12.dp))
-                CategoryPicker(vm.cats, type, effCat, effSub) { c, s ->
-                    cat = c
-                    sub = s
+                if (!transfer) {
+                    Spacer(Modifier.height(12.dp))
+                    CategoryPicker(vm.cats, type, effCat, effSub) { c, s ->
+                        cat = c
+                        sub = s
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = amount > 0 && effCat.isNotEmpty(),
+                enabled = amount > 0 && (if (transfer) toId != 0L && toId != accId else effCat.isNotEmpty()),
                 onClick = {
+                    if (transfer) {
+                        vm.addTransfer(accId, toId, if (vm.toman) amount * 10 else amount, note, ts)
+                        onDismiss()
+                        return@TextButton
+                    }
                     vm.addManual(type, if (vm.toman) amount * 10 else amount, note, effCat, effSub, accId, ts)
                     onDismiss()
                 },

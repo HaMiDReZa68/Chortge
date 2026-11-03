@@ -270,6 +270,8 @@ fun RegisterDialog(vm: MainViewModel, p: PendingTx, onDismiss: () -> Unit) {
     var cat by remember(p.id) { mutableStateOf(p.category) }
     var sub by remember(p.id) { mutableStateOf(p.sub) }
     var note by remember(p.id) { mutableStateOf("") }
+    var transfer by remember(p.id) { mutableStateOf(false) }
+    var otherId by remember(p.id) { mutableStateOf(0L) }
     val unit = if (vm.toman) "تومان" else "ریال"
     var amountText by remember(p.id) { mutableStateOf((if (vm.toman) p.amount / 10 else p.amount).toString()) }
     val amount = parseAmount(amountText)
@@ -287,19 +289,39 @@ fun RegisterDialog(vm: MainViewModel, p: PendingTx, onDismiss: () -> Unit) {
                     cat = vm.cats.firstOrNull { c -> c.type == it && c.parentId == 0L }?.name ?: cat
                     sub = ""
                 }
+                Spacer(Modifier.height(8.dp))
+                Chip("🔁 انتقال بین حساب‌های خودم", transfer) { transfer = !transfer }
                 Spacer(Modifier.height(10.dp))
                 Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
                 Spacer(Modifier.height(10.dp))
-                CategoryPicker(vm.cats, type, cat, sub) { c, s ->
-                    cat = c
-                    sub = s
+                if (transfer) {
+                    Text(
+                        if (p.type == TxType.EXPENSE) "به کدام حساب منتقل شد؟" else "از کدام حساب آمد؟",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    ChipRow {
+                        vm.accounts.filter { it.id != p.accountId }.forEach { a ->
+                            Chip((if (a.isCash) "💵 " else "🏦 ") + a.name, otherId == a.id) { otherId = a.id }
+                        }
+                    }
+                } else {
+                    CategoryPicker(vm.cats, type, cat, sub) { c, s ->
+                        cat = c
+                        sub = s
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
                 Field(note, { note = it }, "توضیحات")
             }
         },
         confirmButton = {
-            TextButton(enabled = amount > 0, onClick = {
+            TextButton(enabled = if (transfer) otherId != 0L else amount > 0, onClick = {
+                if (transfer) {
+                    vm.registerTransfer(p, otherId, note)
+                    onDismiss()
+                    return@TextButton
+                }
                 vm.registerPending(p, type, if (vm.toman) amount * 10 else amount, cat, sub, note)
                 onDismiss()
             }) { Text("ثبت") }
