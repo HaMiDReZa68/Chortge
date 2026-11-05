@@ -56,7 +56,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onNav: (Page) -> Unit)
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable {
                         TimePickerDialog(
                             ctx,

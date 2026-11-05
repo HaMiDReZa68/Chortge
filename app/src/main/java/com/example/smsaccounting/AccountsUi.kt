@@ -53,7 +53,7 @@ fun SenderPicker(vm: MainViewModel, sender: String, onSender: (String) -> Unit, 
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (sel) Teal1.copy(alpha = 0.14f) else MaterialTheme.colorScheme.background)
+                .background(if (sel) Teal1.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant)
                 .clickable { onSender(c.sender) }
                 .padding(12.dp)
         ) {
@@ -246,21 +246,20 @@ fun PendingTab(vm: MainViewModel) {
     var reg by remember { mutableStateOf<PendingTx?>(null) }
     var confirmAll by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
-                .statusBarsPadding()
-                .padding(16.dp),
-        ) {
-            Text("دسته‌بندی‌نشده", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(
-                if (vm.pendings.isEmpty()) "همه چیز دسته‌بندی شده است"
-                else Fa.digits(vm.pendings.size.toString()) + " تراکنش منتظر انتخاب بابت است",
-                color = Color.White.copy(alpha = 0.85f),
-                fontSize = 12.sp,
-            )
+        TopBar("دسته‌بندی‌نشده") {
+            if (vm.pendings.isNotEmpty()) {
+                Text(
+                    Fa.digits(vm.pendings.size.toString()) + " مورد",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+            }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(
             Modifier
                 .weight(1f)

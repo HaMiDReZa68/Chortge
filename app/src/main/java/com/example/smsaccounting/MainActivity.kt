@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,10 +90,10 @@ private val Vazir = FontFamily(
     Font(R.font.vazirmatn_bold, FontWeight.SemiBold),
 )
 
-internal val Teal1 = Color(0xFF0F766E)
-internal val Teal2 = Color(0xFF14B8A6)
-internal val Green = Color(0xFF16A34A)
-internal val Red = Color(0xFFE11D48)
+internal val Teal1 = Color(0xFF0B5C8A)
+internal val Teal2 = Color(0xFF1C7DB0)
+internal val Green = Color(0xFF10A36B)
+internal val Red = Color(0xFFE5484D)
 
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
@@ -123,20 +124,38 @@ fun AppTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = if (dark) {
         darkColorScheme(
-            primary = Color(0xFF5EEAD4),
-            background = Color(0xFF0E1513),
-            surface = Color(0xFF17201D),
-            onSurface = Color(0xFFE6F0ED),
-            onSurfaceVariant = Color(0xFF9DB0AA),
+            primary = Color(0xFF4FB3E8),
+            onPrimary = Color(0xFF06222F),
+            primaryContainer = Color(0xFF16293A),
+            onPrimaryContainer = Color(0xFF4FB3E8),
+            background = Color(0xFF0F1923),
+            surface = Color(0xFF0F1923),
+            surfaceVariant = Color(0xFF17232F),
+            onSurface = Color(0xFFE8EEF3),
+            onSurfaceVariant = Color(0xFF8D9AA6),
+            outlineVariant = Color(0xFF1E2C38),
         )
     } else {
         lightColorScheme(
             primary = Teal1,
-            background = Color(0xFFF3F6F5),
+            primaryContainer = Color(0xFFE6F1F7),
+            onPrimaryContainer = Teal1,
+            background = Color.White,
             surface = Color.White,
-            onSurface = Color(0xFF12201C),
-            onSurfaceVariant = Color(0xFF6B7C77),
+            surfaceVariant = Color(0xFFF3F6F8),
+            onSurface = Color(0xFF1B2530),
+            onSurfaceVariant = Color(0xFF75808B),
+            outlineVariant = Color(0xFFE8ECEF),
         )
+    }
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.SideEffect {
+        val w = (view.context as? android.app.Activity)?.window
+        if (w != null) {
+            val c = WindowCompat.getInsetsController(w, view)
+            c.isAppearanceLightStatusBars = !dark
+            c.isAppearanceLightNavigationBars = !dark
+        }
     }
     MaterialTheme(
         colorScheme = colors,
@@ -208,89 +227,64 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 160.dp),
         ) {
-            // ---- هدر گرادیانی ----
+            // ---- هدر ----
             item {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-                        .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
-                        .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "هومایه",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            modifier = Modifier.weight(1f),
-                        )
+                Column {
+                    TopBar("گزارش") {
                         RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
                         Spacer(Modifier.width(8.dp))
                         RoundBtn("⚙", { page = Page.SETTINGS })
                     }
-
-                    Spacer(Modifier.height(18.dp))
-
                     Row(
-                        Modifier.fillMaxWidth(),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         RoundBtn("›", vm::prevMonth)
-                        Text(
-                            Jalali.title(vm.month),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                        )
+                        Text(Jalali.title(vm.month), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         RoundBtn("‹", vm::nextMonth)
                     }
-
-                    Spacer(Modifier.height(20.dp))
-
+                    Spacer(Modifier.height(14.dp))
                     Text(
                         "تراز این ماه",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
-                    Row(
-                        Modifier.align(Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
+                    Row(Modifier.align(Alignment.CenterHorizontally), verticalAlignment = Alignment.Bottom) {
                         Text(
                             (if (diff < 0) "−" else "") + show(kotlin.math.abs(diff)),
-                            color = Color.White,
+                            color = if (diff < 0) Red else Green,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 34.sp,
+                            fontSize = 30.sp,
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
                             unit,
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(bottom = 6.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(bottom = 5.dp),
                         )
                     }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MiniStat("درآمد", show(income), "↓", Modifier.weight(1f))
-                        MiniStat("هزینه", show(expense), "↑", Modifier.weight(1f))
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        MiniStat("درآمد", show(income), Green, Modifier.weight(1f))
+                        MiniStat("هزینه", show(expense), Red, Modifier.weight(1f))
                     }
-
-                    Spacer(Modifier.height(14.dp))
-
+                    Spacer(Modifier.height(10.dp))
                     Row(
                         Modifier.align(Alignment.CenterHorizontally),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Pill("تومان", filled = vm.toman, onClick = { vm.changeToman(true) })
-                        Pill("ریال", filled = !vm.toman, onClick = { vm.changeToman(false) })
+                        Chip("تومان", vm.toman) { vm.changeToman(true) }
+                        Chip("ریال", !vm.toman) { vm.changeToman(false) }
                     }
+                    Spacer(Modifier.height(6.dp))
                 }
             }
 
@@ -360,9 +354,10 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        shadowElevation = 0.dp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) {
                         Column(
                             Modifier.padding(18.dp),
@@ -426,9 +421,10 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp,
+                        shadowElevation = 0.dp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) {
                         Column(Modifier.padding(18.dp)) {
                             Donut(byCat, modeTotal, show(modeTotal), unit, if (isExp) "مجموع هزینه" else "مجموع درآمد")
@@ -562,48 +558,45 @@ internal fun Pill(
 
 @Composable
 internal fun RoundBtn(label: String, onClick: () -> Unit) {
+    val kind = when (label) {
+        "⚙" -> "gear"
+        "🔍" -> "search"
+        "›" -> "right"
+        "‹" -> "left"
+        "＋" -> "plus"
+        "✕" -> "close"
+        else -> null
+    }
     Box(
         Modifier
             .size(38.dp)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.18f))
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        if (kind != null) LineIcon(kind, MaterialTheme.colorScheme.primary, 22.dp)
+        else Text(label, color = MaterialTheme.colorScheme.primary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun MiniStat(title: String, value: String, arrow: String, modifier: Modifier) {
-    Row(
+private fun MiniStat(title: String, value: String, color: Color, modifier: Modifier) {
+    Column(
         modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.16f))
+            .clip(RoundedCornerShape(14.dp))
+            .background(color.copy(alpha = 0.10f))
             .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.25f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(arrow, color = Color.White, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.width(10.dp))
-        Column {
-            Text(title, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-            Text(
-                value,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        Text(
+            value,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -715,11 +708,12 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             CatIcon(tx.category, 44)
@@ -759,27 +753,23 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
 
 @Composable
 internal fun ModeToggle(mode: TxType, onChange: (TxType) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(TxType.EXPENSE to "خرج", TxType.INCOME to "دخل").forEach { (t, label) ->
             val sel = mode == t
-            val bg = when {
-                !sel -> MaterialTheme.colorScheme.surface
-                t == TxType.EXPENSE -> Color(0xFFFFE8CC)
-                else -> Color(0xFFD9F2E3)
-            }
+            val col = if (t == TxType.EXPENSE) Red else Green
             Box(
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(bg)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (sel) col.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onChange(t) }
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     label,
                     fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
-                    color = if (sel) Color(0xFF1F2937) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (sel) col else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

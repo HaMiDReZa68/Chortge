@@ -1,6 +1,8 @@
 package com.example.smsaccounting
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -45,35 +49,32 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val navItems = listOf("🗂️" to "دسته‌بندی", "🏠" to "خانه", "📊" to "گزارش", "🐷" to "بودجه", "⏰" to "سررسید")
+private val navItems = listOf(
+    "list" to "دسته‌بندی", "home" to "خانه", "chart" to "گزارش", "wallet" to "بودجه", "clock" to "سررسید",
+)
 
 @Composable
 fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 12.dp,
-    ) {
+    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 6.dp, vertical = 8.dp),
         ) {
             navItems.forEachIndexed { i, (icon, label) ->
                 val sel = i == tab
+                val c = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 Column(
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(if (sel) Teal1.copy(alpha = 0.12f) else Color.Transparent)
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onTab(i) }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Box {
-                        Text(icon, fontSize = 20.sp)
+                        LineIcon(icon, c, 26.dp)
                         if (i == 0 && badge > 0) {
                             Box(
                                 Modifier
@@ -84,13 +85,7 @@ fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
                             ) { Text(Fa.digits(badge.toString()), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
                         }
                     }
-                    Text(
-                        label,
-                        fontSize = 11.sp,
-                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
-                        color = if (sel) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text(label, fontSize = 10.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal, color = c)
                 }
             }
         }
@@ -102,21 +97,14 @@ private fun AccountCard(icon: String, name: String, value: String) {
     Column(
         Modifier
             .width(150.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(alpha = 0.95f))
-            .padding(14.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+            .padding(12.dp)
     ) {
-        Text(icon, fontSize = 22.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(name, fontSize = 12.sp, color = Color(0xFF4B5B57), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(
-            value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF12201C),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Text(icon, fontSize = 20.sp)
+        Spacer(Modifier.height(6.dp))
+        Text(name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -126,54 +114,47 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
     val banks = vm.accounts.filter { !it.isCash }
     val total = vm.accounts.sumOf { it.lastBalance ?: 0L }
+    var homeTab by remember { mutableStateOf(0) }
     val upcoming = vm.obligations.filter { !it.done }.sortedBy { it.dueTs }.take(3)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 160.dp)) {
         item {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-                    .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
-                    .statusBarsPadding()
-                    .padding(top = 16.dp, bottom = 22.dp),
-            ) {
-                Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("خانه", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+            Column {
+                TopBar(logo = true) {
                     RoundBtn(if (vm.searchOpen) "✕" else "🔍", vm::toggleSearch)
                     Spacer(Modifier.width(8.dp))
                     RoundBtn("⚙", onSettings)
                 }
-                Spacer(Modifier.height(18.dp))
-                Text(
-                    "دارایی کل",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 13.sp,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                Row(Modifier.align(Alignment.CenterHorizontally), verticalAlignment = Alignment.Bottom) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("دارایی کل", fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    Text(unit, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
                     Text(
                         (if (total < 0) "−" else "") + show(kotlin.math.abs(total)),
-                        color = Color.White,
+                        color = if (total < 0) Red else Green,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 34.sp,
+                        fontSize = 22.sp,
                     )
-                    Spacer(Modifier.width(6.dp))
-                    Text(unit, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp))
                 }
-                Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     AccountCard("💵", "نقدی", show(vm.cashNet) + " " + unit)
                     banks.forEach { b ->
                         val bal = b.lastBalance
-                        AccountCard("🏦", b.name + if (b.bank.isNotBlank()) " · " + b.bank else "", if (bal != null) show(bal) + " " + unit else "مانده نامشخص")
+                        AccountCard("🏦", b.name + if (b.bank.isNotBlank()) " · " + b.bank else "", if (bal != null) show(bal) + " " + unit else "—")
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                UnderlineTabs(listOf("همه", "درآمد", "هزینه", "انتقال"), homeTab) { homeTab = it }
             }
         }
 
@@ -290,7 +271,15 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                 )
             }
         }
-        items(vm.items.take(8), key = { it.id }) { tx ->
+        val shown = vm.items.filter {
+            when (homeTab) {
+                1 -> it.type == TxType.INCOME
+                2 -> it.type == TxType.EXPENSE
+                3 -> it.type.isTransfer
+                else -> true
+            }
+        }
+        items(shown.take(10), key = { it.id }) { tx ->
             TxRow(tx, show(tx.amount), unit, account = vm.accName(tx.accountId)) { onPick(tx) }
         }
     }
@@ -317,12 +306,10 @@ fun BudgetTab(vm: MainViewModel) {
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-                    .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 16.dp),
             ) {
-                Text("بودجه‌بندی", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("بودجه‌بندی", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(Modifier.height(14.dp))
                 Row(
                     Modifier.fillMaxWidth(),
@@ -332,7 +319,7 @@ fun BudgetTab(vm: MainViewModel) {
                     RoundBtn("›", vm::prevMonth)
                     Text(
                         Jalali.title(vm.month),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
                     )
@@ -342,7 +329,7 @@ fun BudgetTab(vm: MainViewModel) {
                 if (limited.isEmpty()) {
                     Text(
                         "برای هر دسته یک سقف ماهانه تعیین کن تا خرجت دستت باشد.",
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
@@ -350,13 +337,13 @@ fun BudgetTab(vm: MainViewModel) {
                 } else {
                     Text(
                         if (remain >= 0) "باقی‌مانده از بودجه" else "بیشتر از بودجه",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
                     Text(
                         show(kotlin.math.abs(remain)) + " " + unit,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -368,20 +355,20 @@ fun BudgetTab(vm: MainViewModel) {
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(Color.White.copy(alpha = 0.25f))
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Box(
                             Modifier
                                 .fillMaxWidth(frac.coerceAtLeast(0.02f))
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(Color.White)
+                                .background(Teal1)
                         )
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
                         show(totalSpent) + " از " + show(totalLimit) + " " + unit,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
@@ -404,7 +391,8 @@ fun BudgetTab(vm: MainViewModel) {
                     .clickable { editing = c },
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp,
+                shadowElevation = 0.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     CatIcon(c, 44)

@@ -47,20 +47,13 @@ fun ObligationsTab(vm: MainViewModel) {
         !(ctx.getSystemService(android.app.AlarmManager::class.java)).canScheduleExactAlarms()
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
-                .statusBarsPadding()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("سررسیدها", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+        TopBar("سررسیدها") {
             RoundBtn("＋") {
                 if (Build.VERSION.SDK_INT >= 33 && !Notifs.canPost(ctx)) notif.launch(Manifest.permission.POST_NOTIFICATIONS)
                 creating = true
             }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(
             Modifier
                 .weight(1f)
@@ -110,14 +103,15 @@ private fun ObRow(o: Obligation, now: Long, show: (Long) -> String, unit: String
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Teal1.copy(alpha = 0.12f)),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) { Text(o.kind.icon, fontSize = 20.sp) }
             Spacer(Modifier.width(12.dp))

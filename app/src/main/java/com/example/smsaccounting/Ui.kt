@@ -29,6 +29,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 
 enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP }
 
@@ -48,22 +59,22 @@ fun PageScaffold(
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
                 .statusBarsPadding()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RoundBtn("›", onBack)
             Spacer(Modifier.width(12.dp))
             Text(
                 title,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 modifier = Modifier.weight(1f),
             )
             action?.invoke()
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(
             Modifier
                 .weight(1f)
@@ -80,9 +91,10 @@ fun PageScaffold(
 fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(16.dp), content = content)
     }
@@ -104,7 +116,7 @@ fun SoftButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = t
     Box(
         modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(Teal1.copy(alpha = if (enabled) 0.12f else 0.05f))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 1f else 0.5f))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
@@ -159,7 +171,7 @@ fun Chip(text: String, selected: Boolean, color: Color = Teal1, onClick: () -> U
     Box(
         Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) color.copy(alpha = 0.22f) else MaterialTheme.colorScheme.background)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
@@ -167,6 +179,7 @@ fun Chip(text: String, selected: Boolean, color: Color = Teal1, onClick: () -> U
             text,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -463,5 +476,113 @@ fun rememberSmsPermission(): Pair<Boolean, () -> Unit> {
         list.add(Manifest.permission.RECEIVE_SMS)
         if (Build.VERSION.SDK_INT >= 33) list.add(Manifest.permission.POST_NOTIFICATIONS)
         launcher.launch(list.toTypedArray())
+    }
+}
+
+
+// ---------------------------------------------------------------- آیکون‌های خطی و اجزای قالب
+
+@Composable
+fun LineIcon(kind: String, color: Color, size: Dp = 24.dp) {
+    Canvas(Modifier.size(size)) {
+        val u = this.size.width / 24f
+        val sw = 1.8f * u
+        val st = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        fun p(x: Float, y: Float) = Offset(x * u, y * u)
+        fun ln(x1: Float, y1: Float, x2: Float, y2: Float) = drawLine(color, p(x1, y1), p(x2, y2), sw, StrokeCap.Round)
+        fun path(vararg pts: Float, close: Boolean = false) {
+            val pa = Path()
+            pa.moveTo(pts[0] * u, pts[1] * u)
+            var i = 2
+            while (i < pts.size) {
+                pa.lineTo(pts[i] * u, pts[i + 1] * u)
+                i += 2
+            }
+            if (close) pa.close()
+            drawPath(pa, color, style = st)
+        }
+        when (kind) {
+            "list" -> { ln(5f, 6f, 19f, 6f); ln(5f, 12f, 19f, 12f); ln(5f, 18f, 14f, 18f) }
+            "home" -> { path(4f, 11f, 12f, 4f, 20f, 11f, 20f, 20f, 4f, 20f, close = true); path(10f, 20f, 10f, 14f, 14f, 14f, 14f, 20f) }
+            "chart" -> { ln(5f, 20f, 5f, 10f); ln(12f, 20f, 12f, 4f); ln(19f, 20f, 19f, 13f) }
+            "wallet" -> {
+                drawRoundRect(color, p(3f, 6f), Size(18f * u, 13f * u), CornerRadius(3f * u), style = st)
+                ln(16f, 12.5f, 18.5f, 12.5f)
+            }
+            "clock" -> { drawCircle(color, 8f * u, p(12f, 12f), style = st); path(12f, 8f, 12f, 13f, 15f, 15f) }
+            "search" -> { drawCircle(color, 6f * u, p(11f, 11f), style = st); ln(15.5f, 15.5f, 20f, 20f) }
+            "gear" -> {
+                drawCircle(color, 3f * u, p(12f, 12f), style = st)
+                for (k in 0 until 8) {
+                    val a = Math.toRadians(k * 45.0)
+                    val c = Math.cos(a).toFloat()
+                    val sn = Math.sin(a).toFloat()
+                    ln(12f + 6.2f * c, 12f + 6.2f * sn, 12f + 9f * c, 12f + 9f * sn)
+                }
+            }
+            "plus" -> { ln(12f, 5f, 12f, 19f); ln(5f, 12f, 19f, 12f) }
+            "left" -> path(14f, 6f, 8f, 12f, 14f, 18f)
+            "right" -> path(10f, 6f, 16f, 12f, 10f, 18f)
+            "close" -> { ln(6f, 6f, 18f, 18f); ln(18f, 6f, 6f, 18f) }
+        }
+    }
+}
+
+/** نوار بالای صفحه: لوگو یا عنوان در راست، دکمه‌ها در چپ */
+@Composable
+fun TopBar(title: String? = null, logo: Boolean = false, actions: @Composable RowScope.() -> Unit = {}) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (logo) {
+            Image(
+                painterResource(R.drawable.logo_mask),
+                contentDescription = "هومایه",
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height(44.dp),
+            )
+        } else {
+            Text(title ?: "", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+        }
+        Spacer(Modifier.weight(1f))
+        actions()
+    }
+}
+
+/** تب‌های متنی با خط زیرین */
+@Composable
+fun UnderlineTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    Column {
+        Row(Modifier.padding(horizontal = 8.dp)) {
+            labels.forEachIndexed { i, l ->
+                val on = i == selected
+                Column(
+                    Modifier
+                        .clickable { onSelect(i) }
+                        .padding(horizontal = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        l,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        fontSize = 14.sp,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                        color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Box(
+                        Modifier
+                            .height(3.dp)
+                            .width(if (on) 32.dp else 0.dp)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
