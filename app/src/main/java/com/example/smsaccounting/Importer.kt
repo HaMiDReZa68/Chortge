@@ -8,7 +8,7 @@ object Importer {
     private fun suggest(ctx: Context, db: Db, type: TxType, body: String, merchant: String, learned: Map<String, String>) =
         Categorizer.categorize(type, body, merchant, learned, db.catCtx(type))
 
-    /** پیامک‌های بانکی صندوق ورودی از تاریخ مشخص، فقط برای سرشماره‌های همین حساب */
+    /** پیامک‌های بانکی از تاریخ مشخص، فقط برای سرشماره‌های همین حساب؛ در تب «دسته‌بندی‌نشده» می‌آیند */
     fun importForAccount(ctx: Context, accountId: Long, sinceMs: Long): Int {
         val db = Db.get(ctx)
         val prefs = Prefs(ctx)
@@ -17,7 +17,6 @@ object Importer {
         if (sources.isEmpty()) return 0
         val keys = sources.map { Norm.sender(it.sender) }.toSet()
         var added = 0
-        var lastBal: Pair<Long, Long>? = null
         val expCtx = db.catCtx(TxType.EXPENSE)
         val incCtx = db.catCtx(TxType.INCOME)
 
@@ -40,25 +39,15 @@ object Importer {
                 if (src.accountId != accountId) continue
                 val p = SmsParser.parse(body) ?: continue
                 val r = Categorizer.categorize(p.type, body, p.merchant, learned, if (p.type == TxType.EXPENSE) expCtx else incCtx)
-                val tx = Tx(
-                    hash = sha1("$sender|$ts|$body"),
-                    sender = sender,
-                    type = p.type,
-                    amount = p.amount,
-                    balance = p.balance,
-                    merchant = p.merchant,
-                    mkey = Categorizer.mkey(p.merchant),
-                    category = r.category,
-                    ts = ts,
-                    body = body,
-                    accountId = accountId,
-                    sub = r.sub,
+                if (db.txExists(sender, body, ts)) continue
+                val pt = PendingTx(
+                    id = 0, hash = sha1("$sender|$ts|$body"), accountId = accountId, sender = sender,
+                    type = p.type, amount = p.amount, balance = p.balance, merchant = p.merchant,
+                    category = r.category, sub = r.sub, ts = ts, body = body,
                 )
-                if (db.insert(tx)) added++
-                if (p.balance != null) lastBal = p.balance to ts
+                if (db.insertPending(pt) >= 0) added++
             }
         }
-        lastBal?.let { db.setBalance(accountId, it.first, it.second) }
         return added
     }
 
@@ -97,7 +86,6 @@ object Importer {
         val db = Db.get(ctx)
         val src = db.findSource(sender, body) ?: return false
         val p = SmsParser.parse(body) ?: return false
-        if (p.balance != null) db.setBalance(src.accountId, p.balance, ts)
         val r = suggest(ctx, db, p.type, body, p.merchant, Prefs(ctx).learned())
         val id = db.insertPending(
             PendingTx(

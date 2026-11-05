@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,7 +110,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    Screen(vm, openReq.value) { openReq.value = null }
+                    var splash by rememberSaveable { mutableStateOf(true) }
+                    if (splash) SplashScreen { splash = false } else Screen(vm, openReq.value) { openReq.value = null }
                 }
             }
         }
@@ -162,10 +164,13 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     LaunchedEffect(openReq) {
         when (openReq) {
-            "pending" -> page = Page.PENDING
+            "pending" -> {
+                page = null
+                tab = 0
+            }
             "obligations" -> {
                 page = null
-                tab = 3
+                tab = 4
             }
         }
         if (openReq != null) onOpenHandled()
@@ -199,7 +204,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (tab == 1) LazyColumn(
+        if (tab == 2) LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 160.dp),
         ) {
@@ -215,7 +220,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "حسابداری پیامک",
+                            "هومایه",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
@@ -474,13 +479,14 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             }
         }
 
-        if (tab == 0) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
-        if (tab == 2) BudgetTab(vm)
-        if (tab == 3) ObligationsTab(vm)
+        if (tab == 0) PendingTab(vm)
+        if (tab == 1) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
+        if (tab == 3) BudgetTab(vm)
+        if (tab == 4) ObligationsTab(vm)
 
-        BottomNav(tab, { tab = it }, Modifier.align(Alignment.BottomCenter))
+        BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter))
 
-        if (!vm.searchOpen && tab != 3) {
+        if (!vm.searchOpen && tab != 4) {
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
@@ -500,7 +506,6 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             Page.SETTINGS -> SettingsScreen(vm, { page = null }, { page = it })
             Page.ACCOUNTS -> AccountsPage(vm, { page = Page.SETTINGS }, { page = Page.ADD_ACCOUNT })
             Page.ADD_ACCOUNT -> AddAccountPage(vm) { page = Page.ACCOUNTS }
-            Page.PENDING -> PendingPage(vm) { page = null }
             Page.CATEGORIES -> CategoriesPage(vm) { page = Page.SETTINGS }
             Page.EXPORT -> ExportPage(vm) { page = Page.SETTINGS }
             Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }

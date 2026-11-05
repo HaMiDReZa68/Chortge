@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, PENDING, CATEGORIES, EXPORT, BACKUP }
+enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP }
 
 /** صفحهٔ تمام‌صفحه با نوار بالای گرادیانی */
 @Composable

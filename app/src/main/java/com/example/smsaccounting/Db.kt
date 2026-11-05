@@ -26,7 +26,7 @@ private fun Cursor.lngOrNull(n: String): Long? {
     return if (isNull(i)) null else getLong(i)
 }
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 2) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -62,7 +62,18 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
             seed(db)
             migrateSenders(db)
         }
+        if (oldVersion == 2) db.execSQL("ALTER TABLE account ADD COLUMN opening INTEGER NOT NULL DEFAULT 0")
+        if (oldVersion < 3) {
+            // مانده از این به بعد = مانده اولیه + تراکنش‌های ثبت‌شده
+            db.execSQL(
+                "UPDATE account SET opening = COALESCE(last_balance, 0) - " + netSql("account.id")
+            )
+        }
     }
+
+    private fun netSql(idExpr: String) =
+        "COALESCE((SELECT SUM(CASE WHEN type IN ('INCOME','TRANSFER_IN') THEN amount ELSE -amount END) " +
+            "FROM tx WHERE account_id = $idExpr AND deleted = 0), 0)"
 
     private fun createV2Tables(db: SQLiteDatabase) {
         db.execSQL(
@@ -72,6 +83,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
                 bank TEXT NOT NULL DEFAULT '',
                 kind TEXT NOT NULL DEFAULT 'BANK',
                 last_balance INTEGER,
+                opening INTEGER NOT NULL DEFAULT 0,
                 last_balance_ts INTEGER NOT NULL DEFAULT 0,
                 deleted INTEGER NOT NULL DEFAULT 0
             )"""
@@ -278,10 +290,6 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         }
         for (r in rows) {
             d.execSQL("UPDATE tx SET deleted = 1 WHERE id = ?", arrayOf<Any>(r.id))
-            if (r.sender == "manual") {
-                val plus = r.type == TxType.INCOME || r.type == TxType.TRANSFER_IN
-                adjustBalance(r.accountId, if (plus) -r.amount else r.amount)
-            }
         }
     }
 
@@ -324,9 +332,13 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
 
     // ---------------------------------------------------------------- حساب‌ها و سرشماره‌ها
 
+    /** lastBalance = مانده اولیه + مجموع تراکنش‌های ثبت‌شده (مانده‌ی پیامک ذخیره نمی‌شود) */
     fun accounts(): List<Account> {
         val out = ArrayList<Account>()
-        readableDatabase.query("account", null, "deleted = 0", null, null, null, "id ASC").use { c ->
+        readableDatabase.rawQuery(
+            "SELECT *, opening + " + netSql("account.id") + " AS bal FROM account WHERE deleted = 0 ORDER BY id ASC",
+            null,
+        ).use { c ->
             while (c.moveToNext()) {
                 out.add(
                     Account(
@@ -334,8 +346,8 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
                         name = c.str("name"),
                         bank = c.str("bank"),
                         kind = c.str("kind"),
-                        lastBalance = c.lngOrNull("last_balance"),
-                        lastBalanceTs = c.lng("last_balance_ts"),
+                        lastBalance = c.lng("bal"),
+                        lastBalanceTs = 0L,
                     )
                 )
             }
@@ -345,40 +357,41 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
 
     fun account(id: Long): Account? = accounts().firstOrNull { it.id == id }
 
-    fun addAccount(name: String, bank: String, balance: Long? = null): Long =
+    fun addAccount(name: String, bank: String): Long =
         writableDatabase.insert(
             "account", null,
             ContentValues().apply {
                 put("name", name)
                 put("bank", bank)
                 put("kind", "BANK")
-                if (balance != null) {
-                    put("last_balance", balance)
-                    put("last_balance_ts", System.currentTimeMillis())
-                }
             }
         )
 
-    fun updateAccount(id: Long, name: String, bank: String, balance: Long? = null) {
+    fun updateAccount(id: Long, name: String, bank: String) {
         writableDatabase.execSQL(
             "UPDATE account SET name = ?, bank = ? WHERE id = ?",
             arrayOf<Any>(name, bank, id),
         )
-        if (balance != null) {
-            writableDatabase.execSQL(
-                "UPDATE account SET last_balance = ?, last_balance_ts = ? WHERE id = ?",
-                arrayOf<Any>(balance, System.currentTimeMillis(), id),
-            )
-        }
     }
 
-    /** ثبت دستی: مانده‌ی شناخته‌شده‌ی حساب بانکی را کم یا زیاد می‌کند */
-    fun adjustBalance(id: Long, delta: Long) {
+    /** مانده‌ی اولیه (قبل از اولین تراکنش ثبت‌شده) */
+    fun setOpening(id: Long, opening: Long) {
+        writableDatabase.execSQL("UPDATE account SET opening = ? WHERE id = ?", arrayOf<Any>(opening, id))
+    }
+
+    /** مانده‌ی فعلی را طوری تنظیم می‌کند که با تراکنش‌های ثبت‌شده جمع بشود */
+    fun setCurrentBalance(id: Long, balance: Long) {
         writableDatabase.execSQL(
-            "UPDATE account SET last_balance = last_balance + ? WHERE id = ? AND last_balance IS NOT NULL AND kind != 'CASH'",
-            arrayOf<Any>(delta, id),
+            "UPDATE account SET opening = ? - " + netSql("account.id") + " WHERE id = ?",
+            arrayOf<Any>(balance, id),
         )
     }
+
+    fun txExists(sender: String, body: String, ts: Long): Boolean =
+        readableDatabase.rawQuery(
+            "SELECT 1 FROM tx WHERE sender = ? AND body = ? AND ts BETWEEN ? AND ? AND deleted = 0 LIMIT 1",
+            arrayOf(sender, body, (ts - 120_000).toString(), (ts + 120_000).toString()),
+        ).use { it.moveToFirst() }
 
     fun deleteAccount(id: Long) {
         val d = writableDatabase
@@ -392,13 +405,6 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         } finally {
             d.endTransaction()
         }
-    }
-
-    fun setBalance(accountId: Long, balance: Long, ts: Long) {
-        writableDatabase.execSQL(
-            "UPDATE account SET last_balance = ?, last_balance_ts = ? WHERE id = ? AND last_balance_ts <= ?",
-            arrayOf<Any>(balance, ts, accountId, ts),
-        )
     }
 
     fun sources(): List<SmsSource> {

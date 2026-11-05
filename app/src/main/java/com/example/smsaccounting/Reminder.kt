@@ -94,7 +94,7 @@ object Reminder {
         )
         val n = Notification.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_wallet)
-            .setContentTitle("حسابداری پیامک")
+            .setContentTitle("هومایه")
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(open)

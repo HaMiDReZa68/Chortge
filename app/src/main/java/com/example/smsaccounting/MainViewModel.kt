@@ -230,7 +230,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             busy = true
             val n = withContext(Dispatchers.IO) {
-                val id = db.addAccount(name.trim(), bank.trim(), balanceRial)
+                val id = db.addAccount(name.trim(), bank.trim())
+                if (balanceRial != null) db.setOpening(id, balanceRial)
                 if (sender.isNotBlank()) db.addSource(sender, id, match.trim())
                 if (sinceMs != null && sender.isNotBlank()) {
                     try {
@@ -243,7 +244,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             busy = false
             status = when {
                 n < 0 -> "حساب ساخته شد ولی خواندن پیامک‌ها ممکن نشد"
-                n > 0 -> "حساب ساخته شد و ${Fa.digits(n.toString())} تراکنش خوانده شد"
+                n > 0 -> "حساب ساخته شد؛ ${Fa.digits(n.toString())} تراکنش برای دسته‌بندی آماده است"
                 else -> "حساب ساخته شد"
             }
             Store.notifyChanged()
@@ -262,14 +263,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             busy = false
             status = when {
                 n < 0 -> "خواندن پیامک‌ها ممکن نشد"
-                n > 0 -> "${Fa.digits(n.toString())} تراکنش جدید ثبت شد"
+                n > 0 -> "${Fa.digits(n.toString())} تراکنش برای دسته‌بندی آماده شد"
                 else -> "تراکنش جدیدی پیدا نشد"
             }
             Store.notifyChanged()
         }
     }
 
-    fun renameAccount(id: Long, name: String, bank: String, balanceRial: Long?) = io { db.updateAccount(id, name.trim(), bank.trim(), balanceRial) }
+    fun renameAccount(id: Long, name: String, bank: String, balanceRial: Long?) = io {
+        db.updateAccount(id, name.trim(), bank.trim())
+        if (balanceRial != null) db.setCurrentBalance(id, balanceRial)
+    }
 
     fun accName(id: Long): String = accounts.firstOrNull { it.id == id }?.name ?: ""
 
@@ -306,6 +310,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun dismissPending(p: PendingTx) = io { db.deletePending(p.id) }
+
+    /** همهٔ تراکنش‌های منتظر را با دستهٔ پیشنهادی ثبت می‌کند */
+    fun registerAllPending() {
+        io {
+            for (p in db.pendings()) {
+                val tx = Tx(
+                    hash = p.hash, sender = p.sender, type = p.type, amount = p.amount, balance = p.balance,
+                    merchant = p.merchant, mkey = Categorizer.mkey(p.merchant), category = p.category,
+                    ts = p.ts, body = p.body, accountId = p.accountId, sub = p.sub,
+                )
+                db.insert(tx)
+                db.deletePending(p.id)
+            }
+        }
+        status = "همه ثبت شدند"
+    }
 
     // ---------------------------------------------------------------- دسته‌ها
 
@@ -351,7 +371,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         note = n,
                     )
                 )
-                db.adjustBalance(accountId, if (type == TxType.INCOME) amountRial else -amountRial)
             }
             month = Jalali.ymOf(ts)
             status = "تراکنش ثبت شد"
@@ -382,8 +401,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
             db.insert(leg(fromId, TxType.TRANSFER_OUT, "به " + (to?.name ?: "")))
             db.insert(leg(toId, TxType.TRANSFER_IN, "از " + (from?.name ?: "")))
-            db.adjustBalance(fromId, -amountRial)
-            db.adjustBalance(toId, amountRial)
         }
         status = "انتقال ثبت شد"
     }

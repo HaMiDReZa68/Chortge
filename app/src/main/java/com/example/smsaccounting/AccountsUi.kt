@@ -101,8 +101,12 @@ fun AddAccountPage(vm: MainViewModel, onBack: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             Field(bank, { bank = it }, "نام بانک")
             Spacer(Modifier.height(10.dp))
-            Field(balText, { balText = it }, "مانده فعلی حساب (${if (vm.toman) "تومان" else "ریال"})", number = true)
-            Hint("با هر پیامک بعدی، مانده از متن پیامک به‌روز می‌شود.")
+            Field(
+                balText, { balText = it },
+                (if (readOld) "مانده حساب در تاریخ شروع" else "مانده فعلی حساب") + " (${if (vm.toman) "تومان" else "ریال"})",
+                number = true,
+            )
+            Hint("موجودی برنامه = این مبلغ + تراکنش‌هایی که ثبت می‌کنی. موجودی داخل پیامک ذخیره نمی‌شود و فقط برای مقایسه نشان داده می‌شود.")
         }
         SectionCard { SenderPicker(vm, sender, { sender = it }, match, { match = it }) }
         SectionCard {
@@ -155,7 +159,7 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
                 } else {
                     val bal = a.lastBalance
                     Spacer(Modifier.height(6.dp))
-                    Hint(if (bal != null) "آخرین مانده: " + show(bal) + " " + unit else "مانده هنوز مشخص نیست")
+                    Hint("موجودی (طبق تراکنش‌های ثبت‌شده): " + show(bal ?: 0L) + " " + unit)
                     Spacer(Modifier.height(10.dp))
                     Text("سرشماره‌ها", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     val srcs = vm.sources.filter { it.accountId == a.id }
@@ -194,7 +198,7 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Field(b, { b = it }, "نام بانک")
                     Spacer(Modifier.height(8.dp))
-                    Field(bal, { bal = it }, "اصلاح مانده (${if (vm.toman) "تومان" else "ریال"}، اختیاری)", number = true)
+                    Field(bal, { bal = it }, "اصلاح موجودی فعلی (${if (vm.toman) "تومان" else "ریال"}، اختیاری)", number = true)
                 }
             },
             confirmButton = {
@@ -236,32 +240,71 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
 }
 
 @Composable
-fun PendingPage(vm: MainViewModel, onBack: () -> Unit) {
+fun PendingTab(vm: MainViewModel) {
     val unit = if (vm.toman) "تومان" else "ریال"
+    fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
     var reg by remember { mutableStateOf<PendingTx?>(null) }
-    PageScaffold("تراکنش‌های منتظر ثبت", onBack) {
-        if (vm.pendings.isEmpty()) Hint("همهٔ تراکنش‌ها ثبت شده‌اند.")
-        vm.pendings.forEach { p ->
-            val acc = vm.accounts.firstOrNull { it.id == p.accountId }
-            SectionCard(Modifier.clickable { reg = p }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            (if (p.type == TxType.EXPENSE) "برداشت " else "واریز ") + Fa.money(if (vm.toman) p.amount / 10 else p.amount) + " " + unit,
-                            fontWeight = FontWeight.Bold,
-                            color = if (p.type == TxType.EXPENSE) Red else Green,
-                        )
-                        Hint((acc?.name ?: "") + " · " + Jalali.dateTime(p.ts))
-                    }
-                    Text("ثبت ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(p.body.replace('\n', ' '), fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+    var confirmAll by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Teal1, Teal2)))
+                .statusBarsPadding()
+                .padding(16.dp),
+        ) {
+            Text("دسته‌بندی‌نشده", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(
+                if (vm.pendings.isEmpty()) "همه چیز دسته‌بندی شده است"
+                else Fa.digits(vm.pendings.size.toString()) + " تراکنش منتظر انتخاب بابت است",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp,
+            )
+        }
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (vm.pendings.isEmpty()) {
+                Hint("پیامک‌های تازهٔ بانک‌هایی که اضافه کرده‌ای و پیامک‌های خوانده‌شده از تاریخ مشخص اینجا می‌آیند تا بابت و توضیحاتشان را بزنی.")
+            } else {
+                SoftButton("ثبت همه با دستهٔ پیشنهادی", Modifier.fillMaxWidth()) { confirmAll = true }
             }
+            vm.pendings.forEach { p ->
+                val acc = vm.accounts.firstOrNull { it.id == p.accountId }
+                SectionCard(Modifier.clickable { reg = p }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                (if (p.type == TxType.EXPENSE) "برداشت " else "واریز ") + show(p.amount) + " " + unit,
+                                fontWeight = FontWeight.Bold,
+                                color = if (p.type == TxType.EXPENSE) Red else Green,
+                            )
+                            Hint((acc?.name ?: "") + " · " + Jalali.dateTime(p.ts))
+                            Hint("پیشنهاد: " + Look.icon(p.category) + " " + p.category + if (p.sub.isNotBlank()) " › " + p.sub else "")
+                        }
+                        Text("ثبت ›", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(p.body.replace('\n', ' '), fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(140.dp))
         }
     }
     reg?.let { RegisterDialog(vm, it) { reg = null } }
+    if (confirmAll) {
+        ConfirmDialog(
+            "ثبت همه",
+            "همهٔ تراکنش‌ها با دستهٔ پیشنهادی ثبت شوند؟",
+            confirm = "ثبت",
+            onDismiss = { confirmAll = false },
+        ) { vm.registerAllPending() }
+    }
 }
 
 @Composable
@@ -313,6 +356,33 @@ fun RegisterDialog(vm: MainViewModel, p: PendingTx, onDismiss: () -> Unit) {
                 }
                 Spacer(Modifier.height(10.dp))
                 Field(note, { note = it }, "توضیحات")
+                val smsBal = p.balance
+                val appBal = vm.accounts.firstOrNull { it.id == p.accountId }?.lastBalance
+                if (smsBal != null && appBal != null) {
+                    val rial = if (vm.toman) amount * 10 else amount
+                    val inc = if (transfer) p.type == TxType.INCOME else type == TxType.INCOME
+                    val expected = appBal + if (inc) rial else -rial
+                    val diff = smsBal - expected
+                    fun m(v: Long) = Fa.money(if (vm.toman) v / 10 else v) + " " + unit
+                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (diff == 0L) Green.copy(alpha = 0.12f) else Red.copy(alpha = 0.10f))
+                            .padding(12.dp)
+                    ) {
+                        Text("موجودی طبق پیامک: " + m(smsBal), fontSize = 12.sp)
+                        Text("موجودی برنامه پس از ثبت: " + m(expected), fontSize = 12.sp)
+                        Text(
+                            if (diff == 0L) "✓ موجودی‌ها هم‌خوان است"
+                            else "اختلاف: " + (if (diff > 0) "+" else "−") + m(kotlin.math.abs(diff)),
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                            color = if (diff == 0L) Green else Red,
+                        )
+                        if (diff != 0L) Hint("شاید تراکنشی ثبت نشده، مبلغ اشتباه است یا موجودی اولیه درست وارد نشده.")
+                    }
+                }
             }
         },
         confirmButton = {

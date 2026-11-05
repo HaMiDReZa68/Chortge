@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -44,10 +45,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val navItems = listOf("🏠" to "خانه", "📊" to "گزارش", "🐷" to "بودجه", "⏰" to "سررسید")
+private val navItems = listOf("🗂️" to "دسته‌بندی", "🏠" to "خانه", "📊" to "گزارش", "🐷" to "بودجه", "⏰" to "سررسید")
 
 @Composable
-fun BottomNav(tab: Int, onTab: (Int) -> Unit, modifier: Modifier) {
+fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
@@ -71,7 +72,18 @@ fun BottomNav(tab: Int, onTab: (Int) -> Unit, modifier: Modifier) {
                         .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(icon, fontSize = 20.sp)
+                    Box {
+                        Text(icon, fontSize = 20.sp)
+                        if (i == 0 && badge > 0) {
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .clip(CircleShape)
+                                    .background(Red)
+                                    .padding(horizontal = 5.dp),
+                            ) { Text(Fa.digits(badge.toString()), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+                        }
+                    }
                     Text(
                         label,
                         fontSize = 11.sp,
@@ -113,7 +125,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
     val unit = if (vm.toman) "تومان" else "ریال"
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
     val banks = vm.accounts.filter { !it.isCash }
-    val total = vm.cashNet + banks.sumOf { it.lastBalance ?: 0L }
+    val total = vm.accounts.sumOf { it.lastBalance ?: 0L }
     val upcoming = vm.obligations.filter { !it.done }.sortedBy { it.dueTs }.take(3)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 160.dp)) {
@@ -222,7 +234,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color(0xFFFFF4D6))
-                        .clickable { onNav(Page.PENDING) }
+                        .clickable { onTab(0) }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -246,7 +258,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .clickable { onTab(3) }
+                        .clickable { onTab(4) }
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
