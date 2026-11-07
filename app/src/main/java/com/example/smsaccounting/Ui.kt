@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -515,7 +516,7 @@ fun LineIcon(kind: String, color: Color, size: Dp = 24.dp) {
             "search" -> { drawCircle(color, 6f * u, p(11f, 11f), style = st); ln(15.5f, 15.5f, 20f, 20f) }
             "gear" -> {
                 val gp = androidx.compose.ui.graphics.vector.PathParser().parsePathString(GEAR_PATH).toPath()
-                androidx.compose.ui.graphics.drawscope.scale(u, u, Offset.Zero) { drawPath(gp, color) }
+                scale(u, u, Offset.Zero) { drawPath(gp, color) }
             }
             "plus" -> { ln(12f, 5f, 12f, 19f); ln(5f, 12f, 19f, 12f) }
             "left" -> path(14f, 6f, 8f, 12f, 14f, 18f)
