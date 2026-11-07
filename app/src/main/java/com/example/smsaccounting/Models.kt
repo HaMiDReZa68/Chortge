@@ -87,6 +87,9 @@ data class Obligation(
     val repeat: Boolean,
     val remaining: Int,
     val created: Long,
+    val smsTo: String = "",
+    val smsText: String = "",
+    val smsSent: Boolean = false,
 )
 
 data class SenderCandidate(val sender: String, val count: Int, val lastTs: Long, val sample: String)

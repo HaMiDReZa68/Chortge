@@ -60,6 +60,9 @@ object Notifs {
         )
     }
 
+    fun showInfo(ctx: Context, id: Int, title: String, text: String, page: String) =
+        post(ctx, 400_000 + id % 50_000, CH_OB, title, text, page)
+
     fun showObligation(ctx: Context, o: Obligation, toman: Boolean) {
         val v = if (toman) o.amount / 10 else o.amount
         val unit = if (toman) "تومان" else "ریال"

@@ -192,7 +192,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                         Text("نسخهٔ جدید آماده است", color = Color(0xFF14532D), fontWeight = FontWeight.Bold)
                         Text(u.name, color = Color(0xFF14532D), fontSize = 11.sp)
                     }
-                    SoftButton(if (vm.updating) "در حال دانلود…" else "به‌روزرسانی", enabled = !vm.updating) { vm.installUpdate() }
+                    SoftButton("دانلود") { vm.installUpdate() }
                 }
             }
         }

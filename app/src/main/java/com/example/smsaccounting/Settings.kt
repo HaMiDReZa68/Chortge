@@ -94,13 +94,26 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onNav: (Page) -> Unit)
                         (if (vm.update != null) " · نسخهٔ جدید موجود است" else ""))
                 }
                 if (vm.update != null) {
-                    SoftButton(if (vm.updating) "در حال دانلود…" else "نصب", enabled = !vm.updating) { vm.installUpdate() }
+                    SoftButton("دانلود") { vm.installUpdate() }
                 } else {
                     SoftButton("بررسی") { vm.checkUpdate(true) }
                 }
             }
         }
+        SectionCard {
+            Text("ظاهر", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            ChipRow {
+                listOf(0 to "روشن", 1 to "تیره", 2 to "طبق گوشی").forEach { (v, l) ->
+                    Chip(l, ThemeState.mode == v) {
+                        ThemeState.mode = v
+                        Prefs(ctx).themeMode = v
+                    }
+                }
+            }
+        }
         listOf(
+            Triple("🔒", "قفل برنامه (رمز، الگو، اثر انگشت)", Page.LOCK),
             Triple("🏦", "حساب‌ها و سرشماره‌های پیامک", Page.ACCOUNTS),
             Triple("🏷️", "دسته‌بندی‌ها و زیرشاخه‌ها", Page.CATEGORIES),
             Triple("📤", "خروجی اکسل و PDF", Page.EXPORT),

@@ -26,7 +26,7 @@ private fun Cursor.lngOrNull(n: String): Long? {
     return if (isNull(i)) null else getLong(i)
 }
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 3) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 4) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -63,6 +63,11 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
             migrateSenders(db)
         }
         if (oldVersion == 2) db.execSQL("ALTER TABLE account ADD COLUMN opening INTEGER NOT NULL DEFAULT 0")
+        if (oldVersion in 2..3) {
+            db.execSQL("ALTER TABLE obligation ADD COLUMN sms_to TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE obligation ADD COLUMN sms_text TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE obligation ADD COLUMN sms_sent INTEGER NOT NULL DEFAULT 0")
+        }
         if (oldVersion < 3) {
             // مانده از این به بعد = مانده اولیه + تراکنش‌های ثبت‌شده
             db.execSQL(
@@ -135,6 +140,9 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
                 done INTEGER NOT NULL DEFAULT 0,
                 rep INTEGER NOT NULL DEFAULT 0,
                 remaining INTEGER NOT NULL DEFAULT 0,
+                sms_to TEXT NOT NULL DEFAULT '',
+                sms_text TEXT NOT NULL DEFAULT '',
+                sms_sent INTEGER NOT NULL DEFAULT 0,
                 created INTEGER NOT NULL
             )"""
         )
@@ -565,6 +573,9 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         repeat = int("rep") == 1,
         remaining = int("remaining"),
         created = lng("created"),
+        smsTo = str("sms_to"),
+        smsText = str("sms_text"),
+        smsSent = int("sms_sent") == 1,
     )
 
     fun obligations(): List<Obligation> {
@@ -592,6 +603,9 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         put("rep", if (o.repeat) 1 else 0)
         put("remaining", o.remaining)
         put("created", o.created)
+        put("sms_to", o.smsTo)
+        put("sms_text", o.smsText)
+        put("sms_sent", if (o.smsSent) 1 else 0)
     }
 
     fun addObligation(o: Obligation): Long = writableDatabase.insert("obligation", null, obValues(o))

@@ -29,6 +29,59 @@ class Prefs(ctx: Context) {
         sp.edit().putString("m_$mkey", category).apply()
     }
 
+    /** ۰ روشن، ۱ تیره، ۲ طبق گوشی */
+    var themeMode: Int
+        get() = sp.getInt("theme", 0)
+        set(v) {
+            sp.edit().putInt("theme", v).apply()
+        }
+
+    var lockType: String
+        get() = sp.getString("lock_type", "none") ?: "none"
+        set(v) {
+            sp.edit().putString("lock_type", v).apply()
+        }
+
+    var lockLen: Int
+        get() = sp.getInt("lock_len", 4)
+        set(v) {
+            sp.edit().putInt("lock_len", v).apply()
+        }
+
+    var lockBio: Boolean
+        get() = sp.getBoolean("lock_bio", false)
+        set(v) {
+            sp.edit().putBoolean("lock_bio", v).apply()
+        }
+
+    /** چند ثانیه بعد از خروج از برنامه قفل شود */
+    var lockDelay: Int
+        get() = sp.getInt("lock_delay", 60)
+        set(v) {
+            sp.edit().putInt("lock_delay", v).apply()
+        }
+
+    private fun lockHash(salt: String, secret: String) = sha1(salt + "|" + secret)
+
+    fun setLock(type: String, secret: String) {
+        val salt = java.util.UUID.randomUUID().toString()
+        sp.edit()
+            .putString("lock_type", type)
+            .putString("lock_salt", salt)
+            .putString("lock_hash", lockHash(salt, secret))
+            .putInt("lock_len", secret.length)
+            .apply()
+    }
+
+    fun checkLock(secret: String): Boolean {
+        val salt = sp.getString("lock_salt", null) ?: return false
+        return sp.getString("lock_hash", null) == lockHash(salt, secret)
+    }
+
+    fun clearLock() {
+        sp.edit().remove("lock_type").remove("lock_salt").remove("lock_hash").remove("lock_bio").apply()
+    }
+
     var reminderOn: Boolean
         get() = sp.getBoolean("rem_on", false)
         set(v) {
@@ -81,7 +134,7 @@ class Prefs(ctx: Context) {
     fun dump(): org.json.JSONObject {
         val o = org.json.JSONObject()
         for ((k, v) in sp.all) {
-            if (k == "last_import") continue
+            if (k == "last_import" || k.startsWith("lock_")) continue
             val e = org.json.JSONObject()
             when (v) {
                 is Boolean -> e.put("t", "b").put("v", v)

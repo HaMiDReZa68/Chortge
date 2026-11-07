@@ -3,10 +3,7 @@ package com.example.smsaccounting
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.Settings as AndroidSettings
-import androidx.core.content.FileProvider
 import org.json.JSONObject
-import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -50,33 +47,13 @@ object Updater {
         return Info(code, tag, url)
     }
 
-    fun download(ctx: Context, info: Info): File {
-        val dir = File(ctx.cacheDir, "updates").apply { mkdirs() }
-        val f = File(dir, "update.apk")
-        val c = open(info.url)
-        try {
-            c.inputStream.use { i -> f.outputStream().use { o -> i.copyTo(o) } }
-        } finally {
-            c.disconnect()
-        }
-        return f
-    }
-
-    /** false یعنی اول باید اجازهٔ «نصب از این اپ» داده شود (صفحهٔ تنظیمات باز شد) */
-    fun install(ctx: Context, f: File): Boolean {
-        if (!ctx.packageManager.canRequestPackageInstalls()) {
-            ctx.startActivity(
-                Intent(AndroidSettings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx.packageName))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            return false
-        }
-        val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)
+    /** فایل نسخهٔ جدید را با مرورگر گوشی باز می‌کند؛ دانلود و نصب با خود مرورگر و سیستم است */
+    fun openDownload(ctx: Context, info: Info): Boolean = try {
         ctx.startActivity(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            Intent(Intent.ACTION_VIEW, Uri.parse(info.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
-        return true
+        true
+    } catch (e: Exception) {
+        false
     }
 }

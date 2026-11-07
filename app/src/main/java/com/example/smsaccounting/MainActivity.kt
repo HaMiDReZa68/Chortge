@@ -98,6 +98,21 @@ internal val Red = Color(0xFFE5484D)
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
     private val openReq = mutableStateOf<String?>(null)
+    private val locked = mutableStateOf(false)
+    private var leftAt = 0L
+
+    override fun onStop() {
+        super.onStop()
+        leftAt = android.os.SystemClock.elapsedRealtime()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val p = Prefs(this)
+        if (p.lockType != "none" && leftAt > 0 &&
+            android.os.SystemClock.elapsedRealtime() - leftAt > p.lockDelay * 1000L
+        ) locked.value = true
+    }
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
@@ -107,33 +122,43 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         openReq.value = intent?.getStringExtra("open")
+        ThemeState.mode = Prefs(this).themeMode
+        locked.value = Prefs(this).lockType != "none"
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             AppTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     var splash by rememberSaveable { mutableStateOf(true) }
-                    if (splash) SplashScreen { splash = false } else Screen(vm, openReq.value) { openReq.value = null }
+                    if (splash) SplashScreen { splash = false } else if (locked.value) LockScreen { locked.value = false } else Screen(vm, openReq.value) { openReq.value = null }
                 }
             }
         }
     }
 }
 
+object ThemeState {
+    var mode by mutableStateOf(0)
+}
+
 @Composable
 fun AppTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+    val dark = when (ThemeState.mode) {
+        1 -> true
+        2 -> isSystemInDarkTheme()
+        else -> false
+    }
     val colors = if (dark) {
         darkColorScheme(
-            primary = Color(0xFF4FB3E8),
-            onPrimary = Color(0xFF06222F),
-            primaryContainer = Color(0xFF16293A),
-            onPrimaryContainer = Color(0xFF4FB3E8),
-            background = Color(0xFF0F1923),
-            surface = Color(0xFF0F1923),
-            surfaceVariant = Color(0xFF17232F),
-            onSurface = Color(0xFFE8EEF3),
-            onSurfaceVariant = Color(0xFF8D9AA6),
-            outlineVariant = Color(0xFF1E2C38),
+            primary = Color(0xFF5BB8EC),
+            onPrimary = Color(0xFF05202E),
+            primaryContainer = Color(0xFF173B52),
+            onPrimaryContainer = Color(0xFFA6DCF7),
+            background = Color(0xFF0B1117),
+            surface = Color(0xFF141E28),
+            surfaceVariant = Color(0xFF1C2834),
+            onSurface = Color(0xFFE6EDF3),
+            onSurfaceVariant = Color(0xFF93A1AD),
+            outlineVariant = Color(0xFF263444),
         )
     } else {
         lightColorScheme(
@@ -505,6 +530,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             Page.CATEGORIES -> CategoriesPage(vm) { page = Page.SETTINGS }
             Page.EXPORT -> ExportPage(vm) { page = Page.SETTINGS }
             Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }
+            Page.LOCK -> LockSettingsPage { page = Page.SETTINGS }
             null -> {}
         }
 

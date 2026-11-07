@@ -145,16 +145,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun installUpdate() {
         val info = update ?: return
         if (updating) return
-        viewModelScope.launch {
-            updating = true
-            try {
-                val f = withContext(Dispatchers.IO) { Updater.download(ctx, info) }
-                if (!Updater.install(ctx, f)) status = "اجازهٔ نصب را بده، بعد دوباره «به‌روزرسانی» را بزن"
-            } catch (e: Exception) {
-                status = "دانلود نسخهٔ جدید ناموفق بود"
-            }
-            updating = false
-        }
+        if (!Updater.openDownload(ctx, info)) status = "مرورگری برای دانلود پیدا نشد"
+
     }
 
     // ---------------------------------------------------------------- تنظیمات
@@ -459,7 +451,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (o.remaining == 1) {
                     db.setObligationDone(o.id, true)
                 } else {
-                    val n = o.copy(dueTs = Jalali.addMonths(o.dueTs, 1), remaining = left)
+                    val n = o.copy(dueTs = Jalali.addMonths(o.dueTs, 1), remaining = left, smsSent = false)
                     db.updateObligation(n)
                     Alarms.schedule(ctx, n)
                 }

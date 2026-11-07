@@ -119,6 +119,7 @@ private fun ObRow(o: Obligation, now: Long, show: (Long) -> String, unit: String
                 Text(o.kind.label + ": " + o.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     (if (o.party.isNotBlank()) o.party + " · " else "") + Jalali.dateTime(o.dueTs) +
+                        (if (o.smsTo.isNotBlank()) (if (o.smsSent) " · ✉ پیامک ارسال شد" else " · ✉ پیامک خودکار") else "") +
                         (if (o.repeat) " · ماهانه" + (if (o.remaining > 0) " (" + Fa.digits(o.remaining.toString()) + " مانده)" else "") else ""),
                     fontSize = 11.sp,
                     color = if (overdue) Red else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -152,6 +153,10 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
     var note by remember(key) { mutableStateOf(initial?.note ?: "") }
     var repeat by remember(key) { mutableStateOf(initial?.repeat ?: false) }
     var remainingText by remember(key) { mutableStateOf(initial?.remaining?.takeIf { it > 0 }?.toString() ?: "") }
+    var smsTo by remember(key) { mutableStateOf(initial?.smsTo ?: "") }
+    var smsText by remember(key) { mutableStateOf(initial?.smsText ?: "") }
+    val dctx = LocalContext.current
+    val smsPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     var confirmDelete by remember { mutableStateOf(false) }
     val monthly = kind == ObKind.INSTALLMENT || kind == ObKind.LOAN
 
@@ -198,11 +203,31 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
                 }
                 Spacer(Modifier.height(8.dp))
                 Field(note, { note = it }, "توضیحات")
+                Spacer(Modifier.height(14.dp))
+                Text("ارسال خودکار پیامک (اختیاری)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Hint("در زمان سررسید، همین پیام خودکار به شمارهٔ زیر فرستاده می‌شود.")
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = smsTo,
+                    onValueChange = { smsTo = it },
+                    label = { Text("شمارهٔ گیرنده (مثلاً 0912...)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Field(smsText, { smsText = it }, "متن پیام", singleLine = false)
             }
         },
         confirmButton = {
             TextButton(enabled = title.isNotBlank(), onClick = {
                 val a = parseAmount(amountText)
+                val smsOn = smsTo.isNotBlank() && smsText.isNotBlank()
+                if (smsOn && dctx.checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                    smsPerm.launch(Manifest.permission.SEND_SMS)
+                }
+                val smsChanged = initial == null || initial.dueTs != due || initial.smsTo != smsTo.trim() || initial.smsText != smsText.trim()
                 vm.saveObligation(
                     Obligation(
                         id = initial?.id ?: 0L,
@@ -216,6 +241,9 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
                         repeat = monthly && repeat,
                         remaining = if (monthly && repeat) parseAmount(remainingText).toInt().coerceAtLeast(0) else 0,
                         created = initial?.created ?: System.currentTimeMillis(),
+                        smsTo = if (smsOn) smsTo.trim() else "",
+                        smsText = if (smsOn) smsText.trim() else "",
+                        smsSent = if (smsChanged) false else initial?.smsSent ?: false,
                     )
                 )
                 onDismiss()
