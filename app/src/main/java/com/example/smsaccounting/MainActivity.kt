@@ -90,8 +90,8 @@ private val Vazir = FontFamily(
     Font(R.font.vazirmatn_bold, FontWeight.SemiBold),
 )
 
-internal val Teal1 = Color(0xFF4A2DB5)
-internal val Teal2 = Color(0xFF6D4FD8)
+internal val Teal1 = Color(0xFF2A95F5)
+internal val Teal2 = Color(0xFF5AB0FF)
 internal val Green = Color(0xFF10A36B)
 internal val Red = Color(0xFFE5484D)
 
@@ -149,28 +149,28 @@ fun AppTheme(content: @Composable () -> Unit) {
     }
     val colors = if (dark) {
         darkColorScheme(
-            primary = Color(0xFFA894F0),
-            onPrimary = Color(0xFF1A0E4D),
-            primaryContainer = Color(0xFF2D2362),
-            onPrimaryContainer = Color(0xFFD9D0FF),
-            background = Color(0xFF0F0D1A),
-            surface = Color(0xFF1A1730),
-            surfaceVariant = Color(0xFF241F40),
-            onSurface = Color(0xFFEAE8F5),
-            onSurfaceVariant = Color(0xFF9D99B8),
-            outlineVariant = Color(0xFF2E2950),
+            primary = Color(0xFF5AB0FF),
+            onPrimary = Color(0xFF062A4A),
+            primaryContainer = Color(0xFF17324D),
+            onPrimaryContainer = Color(0xFFBFE0FF),
+            background = Color(0xFF0D1117),
+            surface = Color(0xFF161C25),
+            surfaceVariant = Color(0xFF1E2630),
+            onSurface = Color(0xFFE8EDF3),
+            onSurfaceVariant = Color(0xFF98A3AF),
+            outlineVariant = Color(0xFF28313C),
         )
     } else {
         lightColorScheme(
             primary = Teal1,
-            primaryContainer = Color(0xFFECE8FA),
+            primaryContainer = Color(0xFFE3F1FE),
             onPrimaryContainer = Teal1,
-            background = Color(0xFFF4F4FB),
+            background = Color(0xFFEEF1F5),
             surface = Color.White,
-            surfaceVariant = Color(0xFFF0EEF8),
-            onSurface = Color(0xFF2B2B3C),
-            onSurfaceVariant = Color(0xFF8C8CA1),
-            outlineVariant = Color(0xFFE6E6EF),
+            surfaceVariant = Color(0xFFF3F5F8),
+            onSurface = Color(0xFF16181D),
+            onSurfaceVariant = Color(0xFF8A919C),
+            outlineVariant = Color(0xFFEDF0F4),
         )
     }
     val view = androidx.compose.ui.platform.LocalView.current
@@ -500,23 +500,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         if (tab == 3) BudgetTab(vm)
         if (tab == 4) ObligationsTab(vm)
 
-        BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter))
-
-        if (!vm.searchOpen && tab != 4) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .navigationBarsPadding()
-                    .padding(start = 20.dp, bottom = 84.dp)
-                    .size(58.dp)
-                    .clip(CircleShape)
-                    .background(Brush.verticalGradient(listOf(Teal2, Teal1)))
-                    .clickable { showAdd = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("＋", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            }
-        }
+        BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter), if (!vm.searchOpen && tab != 4) ({ showAdd = true }) else null)
 
         when (page) {
             Page.SETTINGS -> SettingsScreen(vm, { page = null }, { page = it })
@@ -590,13 +574,13 @@ internal fun RoundBtn(label: String, onClick: () -> Unit) {
     }
     Box(
         Modifier
-            .size(38.dp)
+            .size(34.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (kind != null) LineIcon(kind, MaterialTheme.colorScheme.primary, 22.dp)
+        if (kind != null) LineIcon(kind, MaterialTheme.colorScheme.primary, 20.dp)
         else Text(label, color = MaterialTheme.colorScheme.primary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }

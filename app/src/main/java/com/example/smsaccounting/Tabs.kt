@@ -39,8 +39,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,53 +56,62 @@ private val navItems = listOf(
 )
 
 @Composable
-fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
-    Surface(
-        modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 12.dp,
+fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier, onAdd: (() -> Unit)? = null) {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val pillColor = if (dark) Color(0xFF2A333F) else Color(0xFF111318)
+    Row(
+        modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
             Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = 6.dp)
-                .padding(bottom = 8.dp),
+                .weight(1f)
+                .height(52.dp)
+                .shadow(8.dp, RoundedCornerShape(30.dp))
+                .clip(RoundedCornerShape(30.dp))
+                .background(pillColor)
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceAround,
         ) {
-            navItems.forEachIndexed { i, (icon, label) ->
+            navItems.forEachIndexed { i, (icon, _) ->
                 val sel = i == tab
-                val c = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                Column(
+                Box(
                     Modifier
-                        .weight(1f)
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (sel) Color.White else Color.Transparent)
                         .clickable { onTab(i) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(
-                                if (sel) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
-                            ),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Box {
-                        LineIcon(icon, c, 26.dp)
-                        if (i == 0 && badge > 0) {
-                            Box(
-                                Modifier
-                                    .align(Alignment.TopEnd)
-                                    .clip(CircleShape)
-                                    .background(Red)
-                                    .padding(horizontal = 5.dp),
-                            ) { Text(Fa.digits(badge.toString()), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
-                        }
+                    LineIcon(icon, if (sel) Color(0xFF111318) else Color.White, 22.dp)
+                    if (i == 0 && badge > 0) {
+                        Box(
+                            Modifier
+                                .align(Alignment.TopEnd)
+                                .clip(CircleShape)
+                                .background(Red)
+                                .padding(horizontal = 4.dp),
+                        ) { Text(Fa.digits(badge.toString()), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold) }
                     }
-                    Text(label, fontSize = 10.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal, color = c)
                 }
             }
+        }
+        if (onAdd != null) {
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .shadow(8.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(Teal1)
+                    .clickable { onAdd() },
+                contentAlignment = Alignment.Center,
+            ) { LineIcon("plus", Color.White, 24.dp) }
         }
     }
 }

@@ -105,20 +105,21 @@ fun PrimaryButton(text: String, enabled: Boolean = true, modifier: Modifier = Mo
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Teal1),
-        modifier = modifier.fillMaxWidth(),
-    ) { Text(text, color = Color.White, fontWeight = FontWeight.Bold) }
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+        modifier = modifier.fillMaxWidth().height(44.dp),
+    ) { Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp) }
 }
 
 @Composable
 fun SoftButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
         modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (enabled) 1f else 0.5f))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -173,7 +174,7 @@ fun Chip(text: String, selected: Boolean, color: Color = Teal1, onClick: () -> U
             .clip(RoundedCornerShape(50))
             .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         Text(
             text,
