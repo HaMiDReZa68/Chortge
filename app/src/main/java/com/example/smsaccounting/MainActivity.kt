@@ -90,8 +90,8 @@ private val Vazir = FontFamily(
     Font(R.font.vazirmatn_bold, FontWeight.SemiBold),
 )
 
-internal val Teal1 = Color(0xFF0B5C8A)
-internal val Teal2 = Color(0xFF1C7DB0)
+internal val Teal1 = Color(0xFF4A2DB5)
+internal val Teal2 = Color(0xFF6D4FD8)
 internal val Green = Color(0xFF10A36B)
 internal val Red = Color(0xFFE5484D)
 
@@ -149,28 +149,28 @@ fun AppTheme(content: @Composable () -> Unit) {
     }
     val colors = if (dark) {
         darkColorScheme(
-            primary = Color(0xFF5BB8EC),
-            onPrimary = Color(0xFF05202E),
-            primaryContainer = Color(0xFF173B52),
-            onPrimaryContainer = Color(0xFFA6DCF7),
-            background = Color(0xFF0B1117),
-            surface = Color(0xFF141E28),
-            surfaceVariant = Color(0xFF1C2834),
-            onSurface = Color(0xFFE6EDF3),
-            onSurfaceVariant = Color(0xFF93A1AD),
-            outlineVariant = Color(0xFF263444),
+            primary = Color(0xFFA894F0),
+            onPrimary = Color(0xFF1A0E4D),
+            primaryContainer = Color(0xFF2D2362),
+            onPrimaryContainer = Color(0xFFD9D0FF),
+            background = Color(0xFF0F0D1A),
+            surface = Color(0xFF1A1730),
+            surfaceVariant = Color(0xFF241F40),
+            onSurface = Color(0xFFEAE8F5),
+            onSurfaceVariant = Color(0xFF9D99B8),
+            outlineVariant = Color(0xFF2E2950),
         )
     } else {
         lightColorScheme(
             primary = Teal1,
-            primaryContainer = Color(0xFFE6F1F7),
+            primaryContainer = Color(0xFFECE8FA),
             onPrimaryContainer = Teal1,
-            background = Color.White,
+            background = Color(0xFFF4F4FB),
             surface = Color.White,
-            surfaceVariant = Color(0xFFF3F6F8),
-            onSurface = Color(0xFF1B2530),
-            onSurfaceVariant = Color(0xFF75808B),
-            outlineVariant = Color(0xFFE8ECEF),
+            surfaceVariant = Color(0xFFF0EEF8),
+            onSurface = Color(0xFF2B2B3C),
+            onSurfaceVariant = Color(0xFF8C8CA1),
+            outlineVariant = Color(0xFFE6E6EF),
         )
     }
     val view = androidx.compose.ui.platform.LocalView.current
@@ -359,27 +359,22 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                 Column(Modifier.padding(16.dp)) {
                     ModeToggle(vm.mode, vm::changeMode)
                     Spacer(Modifier.height(10.dp))
-                    Text("حساب", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
-                    ChipRow {
-                        Chip("همه", accFilter == 0L) { accFilter = 0L }
-                        vm.accounts.forEach { a -> Chip(a.name, accFilter == a.id) { accFilter = a.id } }
-                    }
+                    ComboSingle(
+                        "حساب",
+                        listOf(0L to "همهٔ حساب‌ها") + vm.accounts.map { it.id to it.name },
+                        accFilter,
+                    ) { accFilter = it }
                     Spacer(Modifier.height(8.dp))
-                    Text("دسته (یک یا چند مورد)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
-                    ChipRow {
-                        Chip("همه", selCats.isEmpty()) { selCats = emptySet() }
-                        vm.cats.filter { it.type == vm.mode && it.parentId == 0L }.forEach { c ->
-                            Chip(c.name, c.name in selCats, Look.color(c.name)) {
-                                selCats = if (c.name in selCats) selCats - c.name else selCats + c.name
-                            }
-                        }
-                    }
+                    ComboMulti(
+                        "دسته (یک یا چند مورد)",
+                        vm.cats.filter { it.type == vm.mode && it.parentId == 0L }.map { it.name },
+                        selCats,
+                        "همهٔ دسته‌ها",
+                    ) { selCats = it }
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(26.dp),
                         color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 0.dp,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -446,7 +441,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(26.dp),
                         color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 0.dp,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -736,7 +731,7 @@ internal fun TxRow(tx: Tx, amountText: String, unit: String, withDate: Boolean =
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(26.dp),
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 0.dp,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),

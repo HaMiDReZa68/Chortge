@@ -55,12 +55,17 @@ private val navItems = listOf(
 
 @Composable
 fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
-    Column(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    Surface(
+        modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 12.dp,
+    ) {
         Row(
             Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
+                .padding(horizontal = 6.dp)
+                .padding(bottom = 8.dp),
         ) {
             navItems.forEachIndexed { i, (icon, label) ->
                 val sel = i == tab
@@ -68,11 +73,19 @@ fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier) {
                 Column(
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onTab(i) }
-                        .padding(vertical = 4.dp),
+                        .clickable { onTab(i) },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Box(
+                        Modifier
+                            .width(40.dp)
+                            .height(4.dp)
+                            .background(
+                                if (sel) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                            ),
+                    )
+                    Spacer(Modifier.height(8.dp))
                     Box {
                         LineIcon(icon, c, 26.dp)
                         if (i == 0 && badge > 0) {
@@ -97,9 +110,9 @@ private fun AccountCard(icon: String, name: String, value: String) {
     Column(
         Modifier
             .width(150.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
-            .padding(12.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(14.dp)
     ) {
         Text(icon, fontSize = 20.sp)
         Spacer(Modifier.height(6.dp))

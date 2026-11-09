@@ -92,12 +92,11 @@ fun PageScaffold(
 fun SectionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(26.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 0.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shadowElevation = 1.dp,
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(18.dp), content = content)
     }
 }
 
@@ -582,5 +581,76 @@ fun UnderlineTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) 
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun ComboShell(
+    label: String,
+    valueText: String,
+    content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(4.dp))
+        Box {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp))
+                    .clickable { open = true }
+                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(valueText, modifier = Modifier.weight(1f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("▾", color = MaterialTheme.colorScheme.primary, fontSize = 16.sp)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) { content { open = false } }
+        }
+    }
+}
+
+/** کمبوباکس تک‌انتخابی */
+@Composable
+fun <T> ComboSingle(label: String, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    ComboShell(label, options.firstOrNull { it.first == selected }?.second ?: "") { close ->
+        options.forEach { (v, t) ->
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        t,
+                        fontWeight = if (v == selected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (v == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                onClick = { onSelect(v); close() },
+            )
+        }
+    }
+}
+
+/** کمبوباکس چندانتخابی؛ خالی یعنی همه */
+@Composable
+fun ComboMulti(label: String, options: List<String>, selected: Set<String>, allLabel: String, onChange: (Set<String>) -> Unit) {
+    val txt = when {
+        selected.isEmpty() -> allLabel
+        selected.size <= 2 -> selected.joinToString("، ")
+        else -> selected.take(2).joinToString("، ") + " و " + Fa.digits((selected.size - 2).toString()) + " مورد دیگر"
+    }
+    ComboShell(label, txt) { close ->
+        DropdownMenuItem(
+            text = { Text(allLabel, fontWeight = if (selected.isEmpty()) FontWeight.Bold else FontWeight.Normal) },
+            onClick = { onChange(emptySet()); close() },
+        )
+        options.forEach { n ->
+            DropdownMenuItem(
+                text = { Text(n) },
+                leadingIcon = { Checkbox(checked = n in selected, onCheckedChange = null) },
+                onClick = { onChange(if (n in selected) selected - n else selected + n) },
+            )
+        }
     }
 }

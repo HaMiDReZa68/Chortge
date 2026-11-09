@@ -61,10 +61,11 @@ fun ObligationsTab(vm: MainViewModel) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ChipRow {
-                Chip("همه", filter == null) { filter = null }
-                ObKind.values().forEach { k -> Chip(k.icon + " " + k.label, filter == k) { filter = k } }
-            }
+            ComboSingle<ObKind?>(
+                "نوع",
+                listOf<Pair<ObKind?, String>>(null to "همه") + ObKind.values().map { it to (it.icon + " " + it.label) },
+                filter,
+            ) { filter = it }
             if (needExact) {
                 SectionCard {
                     Hint("برای اعلان سر ساعت دقیق، دسترسی «هشدار و یادآور» لازم است؛ بدون آن اعلان ممکن است کمی دیر برسد.")
@@ -167,13 +168,13 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
         title = { Text(if (initial == null) "ثبت جدید" else "ویرایش", fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                ChipRow {
-                    ObKind.values().forEach { k ->
-                        Chip(k.icon + " " + k.label, kind == k) {
-                            kind = k
-                            if (k == ObKind.INSTALLMENT || k == ObKind.LOAN) repeat = true else repeat = false
-                        }
-                    }
+                ComboSingle(
+                    "نوع",
+                    ObKind.values().map { it to (it.icon + " " + it.label) },
+                    kind,
+                ) { k ->
+                    kind = k
+                    repeat = k == ObKind.INSTALLMENT || k == ObKind.LOAN
                 }
                 Spacer(Modifier.height(10.dp))
                 Field(title, { title = it }, if (kind == ObKind.CHEQUE) "شمارهٔ چک / عنوان" else "عنوان")
