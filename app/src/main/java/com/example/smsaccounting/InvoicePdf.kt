@@ -105,7 +105,7 @@ object InvoicePdf {
             c.drawRect(L, top, R, top + 7f, fill)
             c.restore()
             rrect(L, top, R, top + hh, 14f, stroke)
-            txC("فاکتور فروش", W / 2, top + 38f, paint(21f))
+            txC(InvFmt.kindLabel(inv.kind), W / 2, top + 38f, paint(21f))
             stroke.color = GRAY
             c.drawLine(L + 12, top + 48f, R - 12, top + 48f, stroke)
 

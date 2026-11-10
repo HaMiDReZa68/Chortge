@@ -17,6 +17,8 @@ class Prefs(ctx: Context) {
         address = sp.getString("inv_addr", "") ?: "",
         phone = sp.getString("inv_phone", "") ?: "",
         next = sp.getLong("inv_next", 1L),
+        nextPro = sp.getLong("inv_next_pro", 1L),
+        notes = sp.getString("inv_notes", "") ?: "",
         toman = sp.getBoolean("inv_toman", true),
         paper = sp.getString("inv_paper", "A4") ?: "A4",
         footer = sp.getBoolean("inv_footer", true),
@@ -24,7 +26,7 @@ class Prefs(ctx: Context) {
 
     fun saveInvSettings(s: InvSettings) {
         sp.edit().putString("inv_name", s.name).putString("inv_addr", s.address).putString("inv_phone", s.phone)
-            .putLong("inv_next", s.next).putBoolean("inv_toman", s.toman).putString("inv_paper", s.paper)
+            .putLong("inv_next", s.next).putLong("inv_next_pro", s.nextPro).putString("inv_notes", s.notes).putBoolean("inv_toman", s.toman).putString("inv_paper", s.paper)
             .putBoolean("inv_footer", s.footer).apply()
     }
 

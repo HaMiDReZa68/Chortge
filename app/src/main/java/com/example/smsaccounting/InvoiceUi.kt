@@ -30,14 +30,23 @@ private fun money(vm: MainViewModel, r: Long) = InvFmt.money(r, vm.invSet.toman)
 // ============================================================ لیست فاکتورها
 
 @Composable
-fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?) -> Unit) {
-    var filter by remember { mutableStateOf(0) } // 0 همه، 1 پرداخت‌نشده، 2 پرداخت‌شده
+fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?, Int) -> Unit) {
+    var filter by remember { mutableStateOf(0) } // 0 همه، 1 فروش، 2 پیش‌فاکتور، 3 پرداخت‌نشده، 4 پرداخت‌شده
+    var chooseKind by remember { mutableStateOf(false) }
     var delete by remember { mutableStateOf<Invoice?>(null) }
     val unit = InvFmt.unit(vm.invSet.toman)
     val all = vm.invoices
-    val shown = all.filter { filter == 0 || (filter == 1 && !it.paid) || (filter == 2 && it.paid) }
-    val unpaid = all.filter { !it.paid }.sumOf { it.totals().total }
-    val sales = all.sumOf { it.totals().total }
+    val shown = all.filter {
+        when (filter) {
+            1 -> it.kind == 0
+            2 -> it.kind == 1
+            3 -> it.kind == 0 && !it.paid
+            4 -> it.kind == 0 && it.paid
+            else -> true
+        }
+    }
+    val unpaid = all.filter { it.kind == 0 && !it.paid }.sumOf { it.totals().total }
+    val sales = all.filter { it.kind == 0 }.sumOf { it.totals().total }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     TopBar("فاکتورها") { RoundBtn("⚙", onSettings) }
@@ -51,25 +60,25 @@ fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?) ->
                 Hint("نام، آدرس، تلفن، لوگو، مهر و شمارهٔ شروع فاکتور در تنظیمات فاکتور. (برای باز کردن لمس کن)")
             }
         }
-        PrimaryButton("＋ فاکتور جدید") { onEdit(null) }
+        PrimaryButton("＋ ثبت جدید") { chooseKind = true }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MiniStat("جمع فاکتورها", money(vm, sales) + " " + unit, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+            MiniStat("جمع فروش", money(vm, sales) + " " + unit, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
             MiniStat("پرداخت‌نشده", money(vm, unpaid) + " " + unit, Red, Modifier.weight(1f))
         }
         ComboSingle(
             "نمایش",
-            listOf(0 to "همهٔ فاکتورها", 1 to "پرداخت‌نشده", 2 to "پرداخت‌شده"),
+            listOf(0 to "همهٔ اسناد", 1 to "فاکتور فروش", 2 to "پیش‌فاکتور", 3 to "پرداخت‌نشده", 4 to "پرداخت‌شده"),
             filter,
         ) { filter = it }
         if (shown.isEmpty()) Hint("فاکتوری وجود ندارد.")
         shown.forEach { inv ->
             val t = inv.totals().total
-            SectionCard(Modifier.clickable { onEdit(inv) }) {
+            SectionCard(Modifier.clickable { onEdit(inv, inv.kind) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(inv.custName.ifBlank { "بدون نام مشتری" }, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            "فاکتور " + Fa.digits(inv.no.toString()) + " · " + Fa.digits(Jalali.full(inv.ts)),
+                            InvFmt.kindLabel(inv.kind) + " " + Fa.digits(inv.no.toString()) + " · " + Fa.digits(Jalali.full(inv.ts)),
                             fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -77,7 +86,8 @@ fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?) ->
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Chip(if (inv.paid) "پرداخت‌شده" else "پرداخت‌نشده", inv.paid, if (inv.paid) Green else Red) { vm.toggleInvoicePaid(inv) }
+                    if (inv.kind == 0) Chip(if (inv.paid) "پرداخت‌شده" else "پرداخت‌نشده", inv.paid, if (inv.paid) Green else Red) { vm.toggleInvoicePaid(inv) }
+                    else Chip("پیش‌فاکتور", true) { }
                     Spacer(Modifier.weight(1f))
                     SoftButton("PDF") { vm.showInvoicePdf(inv) }
                     Spacer(Modifier.width(8.dp))
@@ -89,8 +99,24 @@ fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?) ->
     }
     }
 
+    if (chooseKind) {
+        AlertDialog(
+            onDismissRequest = { chooseKind = false },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("نوع سند را انتخاب کن", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PrimaryButton("فاکتور فروش") { chooseKind = false; onEdit(null, 0) }
+                    SoftButton("پیش‌فاکتور", Modifier.fillMaxWidth()) { chooseKind = false; onEdit(null, 1) }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { chooseKind = false }) { Text("انصراف") } },
+        )
+    }
     delete?.let { d ->
-        ConfirmDialog("حذف فاکتور", "فاکتور ${Fa.digits(d.no.toString())} حذف شود؟", onDismiss = { delete = null }) {
+        ConfirmDialog("حذف سند", "${InvFmt.kindLabel(d.kind)} ${Fa.digits(d.no.toString())} حذف شود؟", onDismiss = { delete = null }) {
             vm.deleteInvoice(d); delete = null
         }
     }
@@ -138,6 +164,8 @@ fun InvoiceSettingsPage(vm: MainViewModel, onBack: () -> Unit) {
     var addr by remember { mutableStateOf(s.address) }
     var phone by remember { mutableStateOf(s.phone) }
     var next by remember { mutableStateOf(s.next.toString()) }
+    var nextPro by remember { mutableStateOf(s.nextPro.toString()) }
+    var notes by remember { mutableStateOf(s.notes) }
     var toman by remember { mutableStateOf(s.toman) }
     var paper by remember { mutableStateOf(s.paper) }
     var footer by remember { mutableStateOf(s.footer) }
@@ -161,7 +189,15 @@ fun InvoiceSettingsPage(vm: MainViewModel, onBack: () -> Unit) {
             Text("شماره‌گذاری", fontWeight = FontWeight.Bold)
             Hint("شمارهٔ فاکتور بعدی؛ بعد از هر فاکتور خودکار یکی بالا می‌رود و موقع ساخت فاکتور هم قابل ویرایش است.")
             Spacer(Modifier.height(8.dp))
-            Field(next, { next = it }, "شمارهٔ فاکتور بعدی", number = true)
+            Field(next, { next = it }, "شمارهٔ فاکتور فروش بعدی", number = true)
+            Spacer(Modifier.height(8.dp))
+            Field(nextPro, { nextPro = it }, "شمارهٔ پیش‌فاکتور بعدی", number = true)
+        }
+        SectionCard {
+            Text("توضیحات پایین فاکتور", fontWeight = FontWeight.Bold)
+            Hint("این متن در همهٔ فاکتورها و پیش‌فاکتورهای جدید خودکار می‌آید و موقع ثبت هر سند هم قابل تغییر است.")
+            Spacer(Modifier.height(8.dp))
+            Field(notes, { notes = it }, "مثلاً شرایط پرداخت، گارانتی، شمارهٔ حساب", singleLine = false)
         }
         SectionCard {
             ComboSingle("واحد پول همهٔ فاکتورها", listOf(false to "ریال", true to "تومان"), toman) { toman = it }
@@ -176,7 +212,7 @@ fun InvoiceSettingsPage(vm: MainViewModel, onBack: () -> Unit) {
         }
         PrimaryButton("ذخیره") {
             vm.saveInvSettings(
-                InvSettings(name.trim(), addr.trim(), phone.trim(), parseAmount(next).coerceAtLeast(1L), toman, paper, footer)
+                InvSettings(name.trim(), addr.trim(), phone.trim(), parseAmount(next).coerceAtLeast(1L), parseAmount(nextPro).coerceAtLeast(1L), notes.trim(), toman, paper, footer)
             )
             onBack()
         }
@@ -186,14 +222,15 @@ fun InvoiceSettingsPage(vm: MainViewModel, onBack: () -> Unit) {
 // ============================================================ فرم فاکتور
 
 @Composable
-fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, onBack: () -> Unit) {
+fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, newKind: Int, onBack: () -> Unit) {
     val toman = vm.invSet.toman
     val mul = if (toman) 10.0 else 1.0
     val unit = InvFmt.unit(toman)
     fun disp(rial: Long): String = if (rial == 0L) "" else (if (toman) Math.round(rial / 10.0) else rial).toString()
     fun pct(d: Double): String = if (d == 0.0) "" else d.toString().removeSuffix(".0")
 
-    var no by remember { mutableStateOf((initial?.no ?: vm.invSet.next).toString()) }
+    var kind by remember { mutableStateOf(initial?.kind ?: newKind) }
+    var no by remember { mutableStateOf((initial?.no ?: if (newKind == 1) vm.invSet.nextPro else vm.invSet.next).toString()) }
     var ts by remember { mutableStateOf(initial?.ts ?: System.currentTimeMillis()) }
     var custId by remember { mutableStateOf(0L) }
     var cName by remember { mutableStateOf(initial?.custName ?: "") }
@@ -215,7 +252,7 @@ fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, onBack: () -> Unit) {
         mutableStateOf(initial?.let { if (it.taxMode == 0) pct(it.taxVal) else disp(it.taxVal.toLong()) } ?: "")
     }
     var debtText by remember { mutableStateOf(initial?.let { disp(it.debt) } ?: "") }
-    var notes by remember { mutableStateOf(initial?.notes ?: "") }
+    var notes by remember { mutableStateOf(initial?.notes ?: vm.invSet.notes) }
     var paid by remember { mutableStateOf(initial?.paid ?: false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -231,16 +268,22 @@ fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, onBack: () -> Unit) {
         taxVal = if (taxMode == 0) InvFmt.parse(taxText) else InvFmt.parse(taxText) * mul,
         debt = Math.round(InvFmt.parse(debtText) * mul),
         notes = notes.trim(),
-        paid = paid,
+        paid = kind == 0 && paid,
+        kind = kind,
     )
     val draft = build()
     val tot = draft.totals()
 
-    PageScaffold(if (initial == null) "فاکتور جدید" else "ویرایش فاکتور", onBack) {
+    PageScaffold((if (initial == null) "ثبت " else "ویرایش ") + InvFmt.kindLabel(kind), onBack) {
         SectionCard {
-            Field(no, { no = it }, "شمارهٔ فاکتور", number = true)
+            ComboSingle("نوع سند", listOf(0 to "فاکتور فروش", 1 to "پیش‌فاکتور"), kind) { k ->
+                kind = k
+                if (initial == null) no = (if (k == 1) vm.invSet.nextPro else vm.invSet.next).toString()
+            }
             Spacer(Modifier.height(10.dp))
-            DateTimeRow("تاریخ فاکتور (قابل تغییر)", ts, false) { ts = it }
+            Field(no, { no = it }, if (kind == 1) "شمارهٔ پیش‌فاکتور" else "شمارهٔ فاکتور", number = true)
+            Spacer(Modifier.height(10.dp))
+            DateTimeRow("تاریخ (قابل تغییر)", ts, false) { ts = it }
         }
         SectionCard {
             Text("مشتری", fontWeight = FontWeight.Bold)
@@ -341,7 +384,7 @@ fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Field(notes, { notes = it }, "توضیحات (در فاکتور نمایش داده می‌شود)", singleLine = false)
             Spacer(Modifier.height(8.dp))
-            Chip(if (paid) "پرداخت‌شده" else "پرداخت‌نشده", paid, if (paid) Green else Red) { paid = !paid }
+            if (kind == 0) Chip(if (paid) "پرداخت‌شده" else "پرداخت‌نشده", paid, if (paid) Green else Red) { paid = !paid }
         }
         SectionCard {
             TotalLine("جمع اقلام", tot.sub, toman, unit)
@@ -357,11 +400,11 @@ fun InvoiceEditPage(vm: MainViewModel, initial: Invoice?, onBack: () -> Unit) {
         val ok = items.isNotEmpty()
         PrimaryButton("ذخیره و نمایش PDF", enabled = ok) { vm.saveInvoice(build(), saveCust, true); onBack() }
         SoftButton("فقط ذخیره", Modifier.fillMaxWidth(), enabled = ok) { vm.saveInvoice(build(), saveCust, false); onBack() }
-        if (initial != null) SoftButton("حذف فاکتور", Modifier.fillMaxWidth()) { confirmDelete = true }
+        if (initial != null) SoftButton("حذف", Modifier.fillMaxWidth()) { confirmDelete = true }
         Spacer(Modifier.height(20.dp))
     }
     if (confirmDelete && initial != null) {
-        ConfirmDialog("حذف فاکتور", "این فاکتور حذف شود؟", onDismiss = { confirmDelete = false }) {
+        ConfirmDialog("حذف سند", "این سند حذف شود؟", onDismiss = { confirmDelete = false }) {
             vm.deleteInvoice(initial); confirmDelete = false; onBack()
         }
     }
@@ -383,7 +426,7 @@ fun InvoicePdfDialog(vm: MainViewModel, inv: Invoice, onDismiss: () -> Unit) {
     var paper by remember { mutableStateOf(vm.invSet.paper) }
     var bytes by remember { mutableStateOf<ByteArray?>(null) }
     var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
-    val name = "invoice-" + inv.no + ".pdf"
+    val name = (if (inv.kind == 1) "proforma-" else "invoice-") + inv.no + ".pdf"
     val saver = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         val b = bytes
         if (uri != null && b != null) vm.say(if (Share.write(ctx, uri, b)) "PDF ذخیره شد" else "ذخیره نشد")
@@ -398,7 +441,7 @@ fun InvoicePdfDialog(vm: MainViewModel, inv: Invoice, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("فاکتور " + Fa.digits(inv.no.toString()), fontWeight = FontWeight.Bold) },
+        title = { Text(InvFmt.kindLabel(inv.kind) + " " + Fa.digits(inv.no.toString()), fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 ComboSingle("اندازهٔ کاغذ", listOf("A4" to "A4", "A5" to "A5"), paper) { paper = it }

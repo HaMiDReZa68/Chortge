@@ -166,7 +166,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 db.saveInvoice(i)
             }
-            if (i.id == 0L && i.no >= invSet.next) saveInvSettings(invSet.copy(next = i.no + 1))
+            if (i.id == 0L) {
+                if (i.kind == 1) { if (i.no >= invSet.nextPro) saveInvSettings(invSet.copy(nextPro = i.no + 1)) }
+                else if (i.no >= invSet.next) saveInvSettings(invSet.copy(next = i.no + 1))
+            }
             Store.notifyChanged()
             if (thenPdf) invPdf = i.copy(id = id)
             status = "فاکتور ذخیره شد"

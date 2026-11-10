@@ -29,6 +29,7 @@ data class Invoice(
     val debt: Long,         // ریال
     val notes: String,
     val paid: Boolean,
+    val kind: Int = 0,      // 0 فاکتور فروش، 1 پیش‌فاکتور
 )
 
 class InvTotals(val sub: Long, val disc: Long, val tax: Long, val debt: Long, val total: Long)
@@ -63,12 +64,16 @@ data class InvSettings(
     val address: String,
     val phone: String,
     val next: Long,
+    val nextPro: Long,
+    val notes: String,
     val toman: Boolean,
     val paper: String,   // A4 یا A5
     val footer: Boolean,
 )
 
 object InvFmt {
+    fun kindLabel(kind: Int) = if (kind == 1) "پیش‌فاکتور" else "فاکتور فروش"
+
     fun money(rial: Long, toman: Boolean): String = Fa.money(if (toman) Math.round(rial / 10.0) else rial)
     fun unit(toman: Boolean) = if (toman) "تومان" else "ریال"
     fun num(d: Double): String =

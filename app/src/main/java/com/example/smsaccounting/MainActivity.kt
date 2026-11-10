@@ -224,6 +224,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         if (openReq != null) onOpenHandled()
     }
     var editInv by remember { mutableStateOf<Invoice?>(null) }
+    var editKind by remember { mutableStateOf(0) }
     BackHandler(page != null) {
         page = when (page) {
             Page.ADD_ACCOUNT -> Page.ACCOUNTS
@@ -507,7 +508,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         if (tab == 1) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
         if (tab == 3) BudgetTab(vm)
         if (tab == 4) ObligationsTab(vm)
-        if (tab == 5) InvoicesTab(vm, { page = Page.INVOICE_SETTINGS }, { editInv = it; page = Page.INVOICE_EDIT })
+        if (tab == 5) InvoicesTab(vm, { page = Page.INVOICE_SETTINGS }, { inv, k -> editInv = inv; editKind = k; page = Page.INVOICE_EDIT })
 
         BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter), if (!vm.searchOpen && tab != 4 && tab != 5) ({ showAdd = true }) else null)
 
@@ -520,7 +521,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }
             Page.LOCK -> LockSettingsPage { page = Page.SETTINGS }
             Page.INVOICE_SETTINGS -> InvoiceSettingsPage(vm) { page = null }
-            Page.INVOICE_EDIT -> InvoiceEditPage(vm, editInv) { page = null }
+            Page.INVOICE_EDIT -> InvoiceEditPage(vm, editInv, editKind) { page = null }
             null -> {}
         }
 
