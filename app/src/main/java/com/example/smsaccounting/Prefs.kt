@@ -11,6 +11,23 @@ class Prefs(ctx: Context) {
             sp.edit().putBoolean("toman", v).apply()
         }
 
+    // ---- تنظیمات فاکتور
+    fun invSettings() = InvSettings(
+        name = sp.getString("inv_name", "") ?: "",
+        address = sp.getString("inv_addr", "") ?: "",
+        phone = sp.getString("inv_phone", "") ?: "",
+        next = sp.getLong("inv_next", 1L),
+        toman = sp.getBoolean("inv_toman", true),
+        paper = sp.getString("inv_paper", "A4") ?: "A4",
+        footer = sp.getBoolean("inv_footer", true),
+    )
+
+    fun saveInvSettings(s: InvSettings) {
+        sp.edit().putString("inv_name", s.name).putString("inv_addr", s.address).putString("inv_phone", s.phone)
+            .putLong("inv_next", s.next).putBoolean("inv_toman", s.toman).putString("inv_paper", s.paper)
+            .putBoolean("inv_footer", s.footer).apply()
+    }
+
     /** تاریخ جدیدترین پیامکی که قبلاً بررسی شده */
     var lastImport: Long
         get() = sp.getLong("last_import", 0L)

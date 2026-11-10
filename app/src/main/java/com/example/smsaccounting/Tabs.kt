@@ -222,6 +222,22 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
             }
         }
 
+        item {
+            Row(
+                Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onNav(Page.INVOICES) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("🧾  فاکتورها", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("‹", fontSize = 20.sp)
+            }
+        }
+
         if (banks.isEmpty()) {
             item {
                 SectionCard(Modifier.padding(16.dp).clickable { onNav(Page.ADD_ACCOUNT) }) {

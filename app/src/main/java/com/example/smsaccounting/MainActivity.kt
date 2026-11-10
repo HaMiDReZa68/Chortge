@@ -219,8 +219,14 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         }
         if (openReq != null) onOpenHandled()
     }
+    var editInv by remember { mutableStateOf<Invoice?>(null) }
     BackHandler(page != null) {
-        page = if (page == Page.ADD_ACCOUNT) Page.ACCOUNTS else null
+        page = when (page) {
+            Page.ADD_ACCOUNT -> Page.ACCOUNTS
+            Page.INVOICE_SETTINGS, Page.INVOICE_EDIT -> Page.INVOICES
+            Page.INVOICES -> Page.SETTINGS
+            else -> null
+        }
     }
     var showAdd by remember { mutableStateOf(false) }
 
@@ -510,6 +516,9 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             Page.EXPORT -> ExportPage(vm) { page = Page.SETTINGS }
             Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }
             Page.LOCK -> LockSettingsPage { page = Page.SETTINGS }
+            Page.INVOICES -> InvoicesPage(vm, { page = Page.SETTINGS }, { page = Page.INVOICE_SETTINGS }, { editInv = it; page = Page.INVOICE_EDIT })
+            Page.INVOICE_SETTINGS -> InvoiceSettingsPage(vm) { page = Page.INVOICES }
+            Page.INVOICE_EDIT -> InvoiceEditPage(vm, editInv) { page = Page.INVOICES }
             null -> {}
         }
 
@@ -586,7 +595,7 @@ internal fun RoundBtn(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MiniStat(title: String, value: String, color: Color, modifier: Modifier) {
+internal fun MiniStat(title: String, value: String, color: Color, modifier: Modifier) {
     Column(
         modifier
             .clip(RoundedCornerShape(14.dp))

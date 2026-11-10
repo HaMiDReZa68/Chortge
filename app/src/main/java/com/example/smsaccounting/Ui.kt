@@ -42,7 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 
-enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP, LOCK }
+enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP, LOCK, INVOICES, INVOICE_SETTINGS, INVOICE_EDIT }
 
 /** صفحهٔ تمام‌صفحه با نوار بالای گرادیانی */
 @Composable

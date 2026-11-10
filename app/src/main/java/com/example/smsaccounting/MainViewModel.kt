@@ -58,6 +58,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var obligations by mutableStateOf<List<Obligation>>(emptyList())
         private set
+    var invoices by mutableStateOf<List<Invoice>>(emptyList())
+        private set
+    var customers by mutableStateOf<List<Customer>>(emptyList())
+        private set
+    var invSet by mutableStateOf(prefs.invSettings())
+        private set
+    var invImgVer by mutableStateOf(0)
+        private set
+    var invPdf by mutableStateOf<Invoice?>(null)
+        private set
     var candidates by mutableStateOf<List<SenderCandidate>>(emptyList())
         private set
     var scanning by mutableStateOf(false)
@@ -99,6 +109,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val p = db.pendings()
             val o = db.obligations()
             val cn = db.cashNet()
+            val iv = db.invoices()
+            val cu = db.customers()
             Look.setCustomIcons(c.associate { it.name to it.icon })
             withContext(Dispatchers.Main) {
                 accounts = a
@@ -107,6 +119,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 pendings = p
                 obligations = o
                 cashNet = cn
+                invoices = iv
+                customers = cu
             }
         }
     }
@@ -121,6 +135,52 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             block()
             Store.notifyChanged()
         }
+    }
+
+    // ---------------------------------------------------------------- فاکتور
+
+    fun saveInvSettings(s: InvSettings) {
+        prefs.saveInvSettings(s)
+        invSet = s
+    }
+
+    fun setInvImage(uri: Uri, kind: String) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) { InvImages.save(ctx, uri, kind) }
+            if (ok) invImgVer++ else status = "تصویر خوانده نشد"
+        }
+    }
+
+    fun removeInvImage(kind: String) {
+        InvImages.delete(ctx, kind)
+        invImgVer++
+    }
+
+    /** ذخیرهٔ فاکتور؛ در صورت نیاز مشتری هم در فهرست ذخیره می‌شود و شمارهٔ بعدی بالا می‌رود */
+    fun saveInvoice(i: Invoice, saveCustomer: Boolean, thenPdf: Boolean) {
+        viewModelScope.launch {
+            val id = withContext(Dispatchers.IO) {
+                if (saveCustomer && i.custName.isNotBlank()) {
+                    val ex = db.customers().firstOrNull { it.name == i.custName.trim() }
+                    db.saveCustomer(Customer(ex?.id ?: 0L, i.custName.trim(), i.custPhone.trim(), i.custAddr.trim()))
+                }
+                db.saveInvoice(i)
+            }
+            if (i.id == 0L && i.no >= invSet.next) saveInvSettings(invSet.copy(next = i.no + 1))
+            Store.notifyChanged()
+            if (thenPdf) invPdf = i.copy(id = id)
+            status = "فاکتور ذخیره شد"
+        }
+    }
+
+    fun deleteInvoice(i: Invoice) = io { db.deleteInvoice(i.id) }
+
+    fun toggleInvoicePaid(i: Invoice) = io { db.saveInvoice(i.copy(paid = !i.paid)) }
+
+    fun deleteCustomer(id: Long) = io { db.deleteCustomer(id) }
+
+    fun showInvoicePdf(i: Invoice?) {
+        invPdf = i
     }
 
     fun say(s: String) {

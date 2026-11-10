@@ -26,7 +26,7 @@ private fun Cursor.lngOrNull(n: String): Long? {
     return if (isNull(i)) null else getLong(i)
 }
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 4) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounting.db", null, 5) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -50,10 +50,41 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         )
         db.execSQL("CREATE INDEX idx_tx_ts ON tx(ts)")
         createV2Tables(db)
+        createV5Tables(db)
         seed(db)
     }
 
+    private fun createV5Tables(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS customer (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL DEFAULT '',
+                address TEXT NOT NULL DEFAULT ''
+            )"""
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS invoice (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                no INTEGER NOT NULL,
+                ts INTEGER NOT NULL,
+                cust_name TEXT NOT NULL DEFAULT '',
+                cust_phone TEXT NOT NULL DEFAULT '',
+                cust_addr TEXT NOT NULL DEFAULT '',
+                items TEXT NOT NULL DEFAULT '[]',
+                disc_mode INTEGER NOT NULL DEFAULT 0,
+                disc_val REAL NOT NULL DEFAULT 0,
+                tax_mode INTEGER NOT NULL DEFAULT 0,
+                tax_val REAL NOT NULL DEFAULT 0,
+                debt INTEGER NOT NULL DEFAULT 0,
+                notes TEXT NOT NULL DEFAULT '',
+                paid INTEGER NOT NULL DEFAULT 0
+            )"""
+        )
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 5) createV5Tables(db)
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE tx ADD COLUMN account_id INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE tx ADD COLUMN sub TEXT NOT NULL DEFAULT ''")
@@ -625,9 +656,63 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "sms_accounti
         writableDatabase.execSQL("DELETE FROM obligation WHERE id = ?", arrayOf<Any>(id))
     }
 
+    // ---------------------------------------------------------------- فاکتور
+
+    fun customers(): List<Customer> {
+        val out = ArrayList<Customer>()
+        readableDatabase.query("customer", null, null, null, null, null, "name ASC").use { c ->
+            while (c.moveToNext()) out.add(Customer(c.lng("id"), c.str("name"), c.str("phone"), c.str("address")))
+        }
+        return out
+    }
+
+    fun saveCustomer(c: Customer): Long {
+        val v = ContentValues().apply { put("name", c.name); put("phone", c.phone); put("address", c.address) }
+        return if (c.id == 0L) writableDatabase.insert("customer", null, v)
+        else { writableDatabase.update("customer", v, "id = ?", arrayOf(c.id.toString())); c.id }
+    }
+
+    fun deleteCustomer(id: Long) {
+        writableDatabase.execSQL("DELETE FROM customer WHERE id = ?", arrayOf<Any>(id))
+    }
+
+    fun invoices(): List<Invoice> {
+        val out = ArrayList<Invoice>()
+        readableDatabase.query("invoice", null, null, null, null, null, "ts DESC, id DESC").use { c ->
+            while (c.moveToNext()) out.add(
+                Invoice(
+                    id = c.lng("id"), no = c.lng("no"), ts = c.lng("ts"),
+                    custName = c.str("cust_name"), custPhone = c.str("cust_phone"), custAddr = c.str("cust_addr"),
+                    items = itemsFromJson(c.str("items")),
+                    discMode = c.int("disc_mode"), discVal = c.getDouble(c.getColumnIndexOrThrow("disc_val")),
+                    taxMode = c.int("tax_mode"), taxVal = c.getDouble(c.getColumnIndexOrThrow("tax_val")),
+                    debt = c.lng("debt"), notes = c.str("notes"), paid = c.int("paid") == 1,
+                )
+            )
+        }
+        return out
+    }
+
+    fun saveInvoice(i: Invoice): Long {
+        val v = ContentValues().apply {
+            put("no", i.no); put("ts", i.ts)
+            put("cust_name", i.custName); put("cust_phone", i.custPhone); put("cust_addr", i.custAddr)
+            put("items", itemsToJson(i.items))
+            put("disc_mode", i.discMode); put("disc_val", i.discVal)
+            put("tax_mode", i.taxMode); put("tax_val", i.taxVal)
+            put("debt", i.debt); put("notes", i.notes); put("paid", if (i.paid) 1 else 0)
+        }
+        return if (i.id == 0L) writableDatabase.insert("invoice", null, v)
+        else { writableDatabase.update("invoice", v, "id = ?", arrayOf(i.id.toString())); i.id }
+    }
+
+    fun deleteInvoice(id: Long) {
+        writableDatabase.execSQL("DELETE FROM invoice WHERE id = ?", arrayOf<Any>(id))
+    }
+
     // ---------------------------------------------------------------- پشتیبان
 
-    private val backupTables = listOf("account", "sms_source", "category", "tx", "pending", "obligation")
+    private val backupTables = listOf("account", "sms_source", "category", "tx", "pending", "obligation", "customer", "invoice")
 
     fun dump(): JSONObject {
         val root = JSONObject()
