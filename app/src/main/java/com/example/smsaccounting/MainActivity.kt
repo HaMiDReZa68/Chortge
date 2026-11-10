@@ -129,7 +129,21 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     var splash by rememberSaveable { mutableStateOf(true) }
-                    if (splash) SplashScreen { splash = false } else if (locked.value) LockScreen { locked.value = false } else Screen(vm, openReq.value) { openReq.value = null }
+                    var shown by rememberSaveable { mutableStateOf(false) }
+                    LaunchedEffect(splash, locked.value) { if (!splash && !locked.value) shown = true }
+                    if (splash) SplashScreen { splash = false } else {
+                        // صفحه همیشه زیر قفل می‌ماند تا فرم‌های نیمه‌کاره پاک نشوند
+                        if (!locked.value || shown) Screen(vm, openReq.value) { openReq.value = null }
+                        if (locked.value) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
+                                    },
+                            ) { LockScreen { locked.value = false } }
+                        }
+                    }
                 }
             }
         }
@@ -204,8 +218,8 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
     }
 
     var selected by remember { mutableStateOf<Tx?>(null) }
-    var page by remember { mutableStateOf<Page?>(null) }
-    var tab by remember { mutableStateOf(0) }
+    var page by rememberSaveable { mutableStateOf<Page?>(null) }
+    var tab by rememberSaveable { mutableStateOf(0) }
     LaunchedEffect(openReq) {
         when (openReq) {
             "pending" -> {
@@ -223,17 +237,18 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         }
         if (openReq != null) onOpenHandled()
     }
-    var editInv by remember { mutableStateOf<Invoice?>(null) }
-    var editKind by remember { mutableStateOf(0) }
+    var editInvId by rememberSaveable { mutableStateOf(0L) }
+    var editKind by rememberSaveable { mutableStateOf(0) }
+    val editInv = vm.invoices.firstOrNull { it.id == editInvId }
     BackHandler(page != null) {
         page = when (page) {
             Page.ADD_ACCOUNT -> Page.ACCOUNTS
             else -> null
         }
     }
-    var showAdd by remember { mutableStateOf(false) }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
 
-    var accFilter by remember { mutableStateOf(0L) }
+    var accFilter by rememberSaveable { mutableStateOf(0L) }
     var selCats by remember(vm.mode) { mutableStateOf(setOf<String>()) }
     val list = vm.items.filter { accFilter == 0L || it.accountId == accFilter }
     val income = list.filter { it.type == TxType.INCOME }.sumOf { it.amount }
@@ -508,7 +523,7 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         if (tab == 1) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
         if (tab == 3) BudgetTab(vm)
         if (tab == 4) ObligationsTab(vm)
-        if (tab == 5) InvoicesTab(vm, { page = Page.INVOICE_SETTINGS }, { inv, k -> editInv = inv; editKind = k; page = Page.INVOICE_EDIT })
+        if (tab == 5) InvoicesTab(vm, { page = Page.INVOICE_SETTINGS }, { inv, k -> editInvId = inv?.id ?: 0L; editKind = k; page = Page.INVOICE_EDIT })
 
         BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter), if (!vm.searchOpen && tab != 4 && tab != 5) ({ showAdd = true }) else null)
 

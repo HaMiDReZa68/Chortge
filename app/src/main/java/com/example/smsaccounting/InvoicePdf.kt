@@ -253,7 +253,7 @@ object InvoicePdf {
 
         // ---------------- پانویس و امضا
         y += 16f
-        if (set.footer) {
+        run {
             val fp = paint(8.5f, color = MUTED)
             val fl = lay("فاکتور با اپلیکیشن «هومایه» ایجاد شده است. مسئولیت‌های مربوط به معامله و محتوای فاکتور بر عهدهٔ فروشنده است.", fp, tw - 36f)
             val fh = fl.height + 22f

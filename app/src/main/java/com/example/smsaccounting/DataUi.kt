@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -34,10 +35,10 @@ import androidx.compose.ui.unit.sp
 fun ExportPage(vm: MainViewModel, onBack: () -> Unit) {
     val now = System.currentTimeMillis()
     val ym = Jalali.ymOf(now)
-    var kind by remember { mutableStateOf(0) }
-    var from by remember { mutableStateOf(Jalali.range(ym).first) }
-    var to by remember { mutableStateOf(Jalali.startOfDay(now)) } // روز آخر (شامل)
-    var accountId by remember { mutableStateOf(0L) }
+    var kind by rememberSaveable { mutableStateOf(0) }
+    var from by rememberSaveable { mutableStateOf(Jalali.range(ym).first) }
+    var to by rememberSaveable { mutableStateOf(Jalali.startOfDay(now)) } // روز آخر (شامل)
+    var accountId by rememberSaveable { mutableStateOf(0L) }
     var pend by remember { mutableStateOf<ExportSpec?>(null) }
 
     val xlsxMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

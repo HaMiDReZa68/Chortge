@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -35,9 +36,9 @@ fun ObligationsTab(vm: MainViewModel) {
     val ctx = LocalContext.current
     val unit = if (vm.toman) "تومان" else "ریال"
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
-    var filter by remember { mutableStateOf<ObKind?>(null) }
-    var dialog by remember { mutableStateOf<Obligation?>(null) }
-    var creating by remember { mutableStateOf(false) }
+    var filter by rememberSaveable { mutableStateOf<ObKind?>(null) }
+    var dialogId by rememberSaveable { mutableStateOf(0L) }
+    var creating by rememberSaveable { mutableStateOf(false) }
     val notif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     val now = System.currentTimeMillis()
     val all = vm.obligations.filter { filter == null || it.kind == filter }
@@ -82,16 +83,16 @@ fun ObligationsTab(vm: MainViewModel) {
                 }
             }
             if (open.isEmpty()) Hint("موردی ثبت نشده. با ＋ چک، طلب، بدهی، قسط یا وام اضافه کن.")
-            open.forEach { o -> ObRow(o, now, ::show, unit) { dialog = o } }
+            open.forEach { o -> ObRow(o, now, ::show, unit) { dialogId = o.id } }
             if (done.isNotEmpty()) {
                 Text("انجام‌شده", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
-                done.forEach { o -> ObRow(o, now, ::show, unit) { dialog = o } }
+                done.forEach { o -> ObRow(o, now, ::show, unit) { dialogId = o.id } }
             }
             Spacer(Modifier.height(140.dp))
         }
     }
     if (creating) ObligationDialog(vm, null) { creating = false }
-    dialog?.let { ObligationDialog(vm, it) { dialog = null } }
+    vm.obligations.firstOrNull { it.id == dialogId }?.let { ObligationDialog(vm, it) { dialogId = 0L } }
 }
 
 @Composable
@@ -144,20 +145,20 @@ private fun ObRow(o: Obligation, now: Long, show: (Long) -> String, unit: String
 fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> Unit) {
     val unit = if (vm.toman) "تومان" else "ریال"
     val key = initial?.id ?: -1L
-    var kind by remember(key) { mutableStateOf(initial?.kind ?: ObKind.CHEQUE) }
-    var title by remember(key) { mutableStateOf(initial?.title ?: "") }
-    var party by remember(key) { mutableStateOf(initial?.party ?: "") }
-    var amountText by remember(key) {
+    var kind by rememberSaveable(key) { mutableStateOf(initial?.kind ?: ObKind.CHEQUE) }
+    var title by rememberSaveable(key) { mutableStateOf(initial?.title ?: "") }
+    var party by rememberSaveable(key) { mutableStateOf(initial?.party ?: "") }
+    var amountText by rememberSaveable(key) {
         mutableStateOf(initial?.let { if (it.amount == 0L) "" else (if (vm.toman) it.amount / 10 else it.amount).toString() } ?: "")
     }
-    var due by remember(key) { mutableStateOf(initial?.dueTs ?: (Jalali.startOfDay(System.currentTimeMillis() + 86_400_000L) + 9 * 3_600_000L)) }
-    var note by remember(key) { mutableStateOf(initial?.note ?: "") }
-    var repeat by remember(key) { mutableStateOf(initial?.repeat ?: false) }
-    var remainingText by remember(key) { mutableStateOf(initial?.remaining?.takeIf { it > 0 }?.toString() ?: "") }
-    var smsTo by remember(key) { mutableStateOf(initial?.smsTo ?: "") }
-    var smsText by remember(key) { mutableStateOf(initial?.smsText ?: "") }
+    var due by rememberSaveable(key) { mutableStateOf(initial?.dueTs ?: (Jalali.startOfDay(System.currentTimeMillis() + 86_400_000L) + 9 * 3_600_000L)) }
+    var note by rememberSaveable(key) { mutableStateOf(initial?.note ?: "") }
+    var repeat by rememberSaveable(key) { mutableStateOf(initial?.repeat ?: false) }
+    var remainingText by rememberSaveable(key) { mutableStateOf(initial?.remaining?.takeIf { it > 0 }?.toString() ?: "") }
+    var smsTo by rememberSaveable(key) { mutableStateOf(initial?.smsTo ?: "") }
+    var smsText by rememberSaveable(key) { mutableStateOf(initial?.smsText ?: "") }
     val dctx = LocalContext.current
-    var confirmDelete by remember { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val monthly = kind == ObKind.INSTALLMENT || kind == ObKind.LOAN
 
     AlertDialog(
@@ -188,7 +189,7 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
                     },
                 )
                 Spacer(Modifier.height(8.dp))
-                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
+                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true, money = true)
                 Spacer(Modifier.height(10.dp))
                 DateTimeRow("زمان سررسید و اعلان", due, withTime = true) { due = it }
                 if (monthly) {

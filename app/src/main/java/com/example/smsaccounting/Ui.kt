@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -144,10 +145,12 @@ fun Field(
     number: Boolean = false,
     singleLine: Boolean = true,
     modifier: Modifier = Modifier,
+    money: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onChange,
+        onValueChange = if (money) ({ t -> onChange(t.filter { it.isDigit() || it == '.' || it == '٫' }) }) else onChange,
+        visualTransformation = if (money) Thousands else androidx.compose.ui.text.input.VisualTransformation.None,
         label = { Text(label) },
         singleLine = singleLine,
         keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Number else KeyboardType.Text),
@@ -216,9 +219,9 @@ private fun Stepper(label: String, onUp: () -> Unit, onDown: () -> Unit) {
 @Composable
 fun JalaliDateDialog(initial: Long, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
     val p = remember { Jalali.parts(initial) }
-    var y by remember { mutableStateOf(p[0]) }
-    var m by remember { mutableStateOf(p[1]) }
-    var d by remember { mutableStateOf(p[2]) }
+    var y by rememberSaveable { mutableStateOf(p[0]) }
+    var m by rememberSaveable { mutableStateOf(p[1]) }
+    var d by rememberSaveable { mutableStateOf(p[2]) }
     val maxD = Jalali.daysIn(Jalali.YM(y, m))
     val day = d.coerceAtMost(maxD)
     AlertDialog(
@@ -246,7 +249,7 @@ fun JalaliDateDialog(initial: Long, onDismiss: () -> Unit, onPick: (Long) -> Uni
 @Composable
 fun DateTimeRow(label: String, ts: Long, withTime: Boolean, onChange: (Long) -> Unit) {
     val ctx = LocalContext.current
-    var dlg by remember { mutableStateOf(false) }
+    var dlg by rememberSaveable { mutableStateOf(false) }
     Column {
         Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(6.dp))
@@ -309,11 +312,11 @@ fun CategoryPicker(
 
 @Composable
 fun TxEditDialog(vm: MainViewModel, tx: Tx, onDismiss: () -> Unit) {
-    var type by remember(tx.id) { mutableStateOf(tx.type) }
-    var cat by remember(tx.id) { mutableStateOf(tx.category) }
-    var sub by remember(tx.id) { mutableStateOf(tx.sub) }
-    var note by remember(tx.id) { mutableStateOf(tx.note) }
-    var confirmDelete by remember { mutableStateOf(false) }
+    var type by rememberSaveable(tx.id) { mutableStateOf(tx.type) }
+    var cat by rememberSaveable(tx.id) { mutableStateOf(tx.category) }
+    var sub by rememberSaveable(tx.id) { mutableStateOf(tx.sub) }
+    var note by rememberSaveable(tx.id) { mutableStateOf(tx.note) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
@@ -373,15 +376,15 @@ fun TxEditDialog(vm: MainViewModel, tx: Tx, onDismiss: () -> Unit) {
 /** ثبت تراکنش نقدی */
 @Composable
 fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
-    var type by remember { mutableStateOf(TxType.EXPENSE) }
-    var amountText by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var cat by remember { mutableStateOf<String?>(null) }
-    var sub by remember { mutableStateOf("") }
-    var accId by remember { mutableStateOf(1L) }
-    var transfer by remember { mutableStateOf(false) }
-    var toId by remember { mutableStateOf(0L) }
-    var ts by remember { mutableStateOf(System.currentTimeMillis()) }
+    var type by rememberSaveable { mutableStateOf(TxType.EXPENSE) }
+    var amountText by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var cat by rememberSaveable { mutableStateOf<String?>(null) }
+    var sub by rememberSaveable { mutableStateOf("") }
+    var accId by rememberSaveable { mutableStateOf(1L) }
+    var transfer by rememberSaveable { mutableStateOf(false) }
+    var toId by rememberSaveable { mutableStateOf(0L) }
+    var ts by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     val first = vm.cats.firstOrNull { it.type == type && it.parentId == 0L }?.name ?: ""
     val auto = remember(type, note) { if (note.isBlank()) null else vm.suggest(type, note) }
     val effCat = cat ?: auto?.category ?: first
@@ -427,7 +430,7 @@ fun AddCashDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
+                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true, money = true)
                 Spacer(Modifier.height(10.dp))
                 DateTimeRow("تاریخ و ساعت", ts, withTime = true) { ts = it }
                 Spacer(Modifier.height(10.dp))
@@ -592,7 +595,7 @@ private fun ComboShell(
     valueText: String,
     content: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
+    var open by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
@@ -654,5 +657,37 @@ fun ComboMulti(label: String, options: List<String>, selected: Set<String>, allL
                 onClick = { onChange(if (n in selected) selected - n else selected + n) },
             )
         }
+    }
+}
+
+/** نمایش سه‌رقمی-سه‌رقمی مبلغ هنگام تایپ (متن اصلی بدون جداکننده می‌ماند) */
+object Thousands : androidx.compose.ui.text.input.VisualTransformation {
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+        val raw = text.text
+        val dot = raw.indexOfFirst { it == '.' || it == '٫' }
+        val ipLen = if (dot < 0) raw.length else dot
+        val sb = StringBuilder()
+        val o2t = IntArray(raw.length + 1)
+        for (i in raw.indices) {
+            if (i in 1 until ipLen && (ipLen - i) % 3 == 0) sb.append(',')
+            o2t[i] = sb.length
+            sb.append(raw[i])
+        }
+        o2t[raw.length] = sb.length
+        val out = sb.toString()
+        val t2o = IntArray(out.length + 1)
+        var c = 0
+        for (j in out.indices) {
+            t2o[j] = c
+            if (out[j] != ',' || !(c in 1 until ipLen)) c++
+        }
+        t2o[out.length] = raw.length
+        return androidx.compose.ui.text.input.TransformedText(
+            androidx.compose.ui.text.AnnotatedString(out),
+            object : androidx.compose.ui.text.input.OffsetMapping {
+                override fun originalToTransformed(offset: Int) = o2t[offset.coerceIn(0, raw.length)]
+                override fun transformedToOriginal(offset: Int) = t2o[offset.coerceIn(0, out.length)].coerceIn(0, raw.length)
+            },
+        )
     }
 }

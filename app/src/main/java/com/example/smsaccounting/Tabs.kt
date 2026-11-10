@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -139,7 +140,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
     val banks = vm.accounts.filter { !it.isCash }
     val total = vm.accounts.sumOf { it.lastBalance ?: 0L }
-    var homeTab by remember { mutableStateOf(0) }
+    var homeTab by rememberSaveable { mutableStateOf(0) }
     val upcoming = vm.obligations.filter { !it.done }.sortedBy { it.dueTs }.take(3)
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 160.dp)) {
@@ -314,7 +315,7 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
 fun BudgetTab(vm: MainViewModel) {
     val unit = if (vm.toman) "تومان" else "ریال"
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
-    var editing by remember { mutableStateOf<String?>(null) }
+    var editing by rememberSaveable { mutableStateOf<String?>(null) }
 
     val spent = vm.items
         .filter { it.type == TxType.EXPENSE }
@@ -469,7 +470,7 @@ fun BudgetTab(vm: MainViewModel) {
     val cat = editing
     if (cat != null) {
         val cur = vm.budgets[cat] ?: 0L
-        var text by remember(cat) {
+        var text by rememberSaveable(cat) {
             mutableStateOf(if (cur > 0) (if (vm.toman) cur / 10 else cur).toString() else "")
         }
         AlertDialog(
@@ -480,7 +481,8 @@ fun BudgetTab(vm: MainViewModel) {
             text = {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { t -> text = t.filter { it.isDigit() } },
+                    visualTransformation = Thousands,
                     label = { Text("مبلغ ($unit)") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

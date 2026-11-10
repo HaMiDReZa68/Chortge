@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -81,13 +82,13 @@ fun SenderPicker(vm: MainViewModel, sender: String, onSender: (String) -> Unit, 
 
 @Composable
 fun AddAccountPage(vm: MainViewModel, onBack: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var bank by remember { mutableStateOf("") }
-    var sender by remember { mutableStateOf("") }
-    var match by remember { mutableStateOf("") }
-    var balText by remember { mutableStateOf("") }
-    var readOld by remember { mutableStateOf(true) }
-    var since by remember { mutableStateOf(Jalali.startOfDay(System.currentTimeMillis() - 30L * 86_400_000L)) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var bank by rememberSaveable { mutableStateOf("") }
+    var sender by rememberSaveable { mutableStateOf("") }
+    var match by rememberSaveable { mutableStateOf("") }
+    var balText by rememberSaveable { mutableStateOf("") }
+    var readOld by rememberSaveable { mutableStateOf(true) }
+    var since by rememberSaveable { mutableStateOf(Jalali.startOfDay(System.currentTimeMillis() - 30L * 86_400_000L)) }
     LaunchedEffect(Unit) { vm.scanSenders() }
     LaunchedEffect(sender) {
         if (bank.isBlank() && sender.isNotBlank()) {
@@ -185,9 +186,9 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
     }
 
     edit?.let { a ->
-        var n by remember(a.id) { mutableStateOf(a.name) }
-        var b by remember(a.id) { mutableStateOf(a.bank) }
-        var bal by remember(a.id) { mutableStateOf("") }
+        var n by rememberSaveable(a.id) { mutableStateOf(a.name) }
+        var b by rememberSaveable(a.id) { mutableStateOf(a.bank) }
+        var bal by rememberSaveable(a.id) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { edit = null },
             shape = RoundedCornerShape(24.dp),
@@ -198,7 +199,7 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Field(b, { b = it }, "نام بانک")
                     Spacer(Modifier.height(8.dp))
-                    Field(bal, { bal = it }, "اصلاح موجودی فعلی (${if (vm.toman) "تومان" else "ریال"}، اختیاری)", number = true)
+                    Field(bal, { bal = it }, "اصلاح موجودی فعلی (${if (vm.toman) "تومان" else "ریال"}، اختیاری)", number = true, money = true)
                 }
             },
             confirmButton = {
@@ -216,8 +217,8 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
         }
     }
     addSrc?.let { a ->
-        var sender by remember(a.id) { mutableStateOf("") }
-        var match by remember(a.id) { mutableStateOf("") }
+        var sender by rememberSaveable(a.id) { mutableStateOf("") }
+        var match by rememberSaveable(a.id) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { addSrc = null },
             shape = RoundedCornerShape(24.dp),
@@ -243,8 +244,8 @@ fun AccountsPage(vm: MainViewModel, onBack: () -> Unit, onAdd: () -> Unit) {
 fun PendingTab(vm: MainViewModel) {
     val unit = if (vm.toman) "تومان" else "ریال"
     fun show(v: Long) = Fa.money(if (vm.toman) v / 10 else v)
-    var reg by remember { mutableStateOf<PendingTx?>(null) }
-    var confirmAll by remember { mutableStateOf(false) }
+    var regId by rememberSaveable { mutableStateOf(0L) }
+    var confirmAll by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         TopBar("دسته‌بندی‌نشده") {
             if (vm.pendings.isNotEmpty()) {
@@ -274,7 +275,7 @@ fun PendingTab(vm: MainViewModel) {
             }
             vm.pendings.forEach { p ->
                 val acc = vm.accounts.firstOrNull { it.id == p.accountId }
-                SectionCard(Modifier.clickable { reg = p }) {
+                SectionCard(Modifier.clickable { regId = p.id }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
@@ -295,7 +296,7 @@ fun PendingTab(vm: MainViewModel) {
             Spacer(Modifier.height(140.dp))
         }
     }
-    reg?.let { RegisterDialog(vm, it) { reg = null } }
+    vm.pendings.firstOrNull { it.id == regId }?.let { RegisterDialog(vm, it) { regId = 0L } }
     if (confirmAll) {
         ConfirmDialog(
             "ثبت همه",
@@ -308,14 +309,14 @@ fun PendingTab(vm: MainViewModel) {
 
 @Composable
 fun RegisterDialog(vm: MainViewModel, p: PendingTx, onDismiss: () -> Unit) {
-    var type by remember(p.id) { mutableStateOf(p.type) }
-    var cat by remember(p.id) { mutableStateOf(p.category) }
-    var sub by remember(p.id) { mutableStateOf(p.sub) }
-    var note by remember(p.id) { mutableStateOf("") }
-    var transfer by remember(p.id) { mutableStateOf(false) }
-    var otherId by remember(p.id) { mutableStateOf(0L) }
+    var type by rememberSaveable(p.id) { mutableStateOf(p.type) }
+    var cat by rememberSaveable(p.id) { mutableStateOf(p.category) }
+    var sub by rememberSaveable(p.id) { mutableStateOf(p.sub) }
+    var note by rememberSaveable(p.id) { mutableStateOf("") }
+    var transfer by rememberSaveable(p.id) { mutableStateOf(false) }
+    var otherId by rememberSaveable(p.id) { mutableStateOf(0L) }
     val unit = if (vm.toman) "تومان" else "ریال"
-    var amountText by remember(p.id) { mutableStateOf((if (vm.toman) p.amount / 10 else p.amount).toString()) }
+    var amountText by rememberSaveable(p.id) { mutableStateOf((if (vm.toman) p.amount / 10 else p.amount).toString()) }
     val amount = parseAmount(amountText)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -334,7 +335,7 @@ fun RegisterDialog(vm: MainViewModel, p: PendingTx, onDismiss: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Chip("🔁 انتقال بین حساب‌های خودم", transfer) { transfer = !transfer }
                 Spacer(Modifier.height(10.dp))
-                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true)
+                Field(amountText, { amountText = it }, "مبلغ ($unit)", number = true, money = true)
                 Spacer(Modifier.height(10.dp))
                 if (transfer) {
                     Text(

@@ -1,5 +1,6 @@
 package com.example.smsaccounting
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -32,8 +33,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun CategoriesPage(vm: MainViewModel, onBack: () -> Unit) {
-    var type by remember { mutableStateOf(TxType.EXPENSE) }
-    var adding by remember { mutableStateOf<Long?>(null) } // 0 = دستهٔ اصلی، غیر صفر = زیرشاخهٔ آن
+    var type by rememberSaveable { mutableStateOf(TxType.EXPENSE) }
+    var adding by rememberSaveable { mutableStateOf<Long?>(null) } // 0 = دستهٔ اصلی، غیر صفر = زیرشاخهٔ آن
     var delete by remember { mutableStateOf<Category?>(null) }
     val tops = vm.cats.filter { it.type == type && it.parentId == 0L }
 
@@ -70,9 +71,9 @@ fun CategoriesPage(vm: MainViewModel, onBack: () -> Unit) {
     }
 
     adding?.let { parent ->
-        var name by remember(parent, type) { mutableStateOf("") }
-        var icon by remember(parent, type) { mutableStateOf("") }
-        var kw by remember(parent, type) { mutableStateOf("") }
+        var name by rememberSaveable(parent, type) { mutableStateOf("") }
+        var icon by rememberSaveable(parent, type) { mutableStateOf("") }
+        var kw by rememberSaveable(parent, type) { mutableStateOf("") }
         val parentName = vm.cats.firstOrNull { it.id == parent }?.name
         AlertDialog(
             onDismissRequest = { adding = null },
