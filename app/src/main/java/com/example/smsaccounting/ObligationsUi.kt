@@ -120,7 +120,7 @@ private fun ObRow(o: Obligation, now: Long, show: (Long) -> String, unit: String
                 Text(o.kind.label + ": " + o.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     (if (o.party.isNotBlank()) o.party + " · " else "") + Jalali.dateTime(o.dueTs) +
-                        (if (o.smsTo.isNotBlank()) (if (o.smsSent) " · ✉ پیامک ارسال شد" else " · ✉ پیامک خودکار") else "") +
+                        (if (o.smsTo.isNotBlank()) " · ✉ پیامک آماده" else "") +
                         (if (o.repeat) " · ماهانه" + (if (o.remaining > 0) " (" + Fa.digits(o.remaining.toString()) + " مانده)" else "") else ""),
                     fontSize = 11.sp,
                     color = if (overdue) Red else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -157,7 +157,6 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
     var smsTo by remember(key) { mutableStateOf(initial?.smsTo ?: "") }
     var smsText by remember(key) { mutableStateOf(initial?.smsText ?: "") }
     val dctx = LocalContext.current
-    val smsPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     var confirmDelete by remember { mutableStateOf(false) }
     val monthly = kind == ObKind.INSTALLMENT || kind == ObKind.LOAN
 
@@ -205,8 +204,8 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
                 Spacer(Modifier.height(8.dp))
                 Field(note, { note = it }, "توضیحات")
                 Spacer(Modifier.height(14.dp))
-                Text("ارسال خودکار پیامک (اختیاری)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Hint("در زمان سررسید، همین پیام خودکار به شمارهٔ زیر فرستاده می‌شود.")
+                Text("پیامک آماده (اختیاری)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Hint("در زمان سررسید، اعلان با دکمهٔ «ارسال پیامک» می‌آید و این پیام آماده در برنامهٔ پیامک باز می‌شود؛ فقط «ارسال» را بزن.")
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = smsTo,
@@ -225,9 +224,6 @@ fun ObligationDialog(vm: MainViewModel, initial: Obligation?, onDismiss: () -> U
             TextButton(enabled = title.isNotBlank(), onClick = {
                 val a = parseAmount(amountText)
                 val smsOn = smsTo.isNotBlank() && smsText.isNotBlank()
-                if (smsOn && dctx.checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-                    smsPerm.launch(Manifest.permission.SEND_SMS)
-                }
                 val smsChanged = initial == null || initial.dueTs != due || initial.smsTo != smsTo.trim() || initial.smsText != smsText.trim()
                 vm.saveObligation(
                     Obligation(

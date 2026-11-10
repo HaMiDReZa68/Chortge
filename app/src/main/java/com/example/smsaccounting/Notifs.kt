@@ -35,7 +35,15 @@ object Notifs {
         return PendingIntent.getActivity(ctx, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun post(ctx: Context, id: Int, ch: String, title: String, text: String, page: String) {
+    /** پیامک آماده در برنامهٔ پیامک گوشی باز می‌شود؛ کاربر فقط «ارسال» را می‌زند */
+    fun smsCompose(ctx: Context, to: String, text: String, req: Int): PendingIntent {
+        val i = Intent(Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:" + to.trim().replace(" ", "")))
+            .putExtra("sms_body", text)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(ctx, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun post(ctx: Context, id: Int, ch: String, title: String, text: String, page: String, action: Notification.Action? = null) {
         if (!canPost(ctx)) return
         val nm = channels(ctx)
         val n = Notification.Builder(ctx, ch)
@@ -45,6 +53,7 @@ object Notifs {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(open(ctx, page, id))
             .setAutoCancel(true)
+            .apply { if (action != null) addAction(action) }
             .build()
         nm.notify(id, n)
     }
@@ -68,6 +77,14 @@ object Notifs {
         val unit = if (toman) "تومان" else "ریال"
         val amt = if (o.amount > 0) " · " + Fa.money(v) + " " + unit else ""
         val party = if (o.party.isNotBlank()) " (${o.party})" else ""
-        post(ctx, 200_000 + (o.id % 50_000).toInt(), CH_OB, "${o.kind.label}: ${o.title}$party", "سررسید رسیده$amt", "obligations")
+        val sms = o.smsTo.isNotBlank() && o.smsText.isNotBlank()
+        val act = if (sms) Notification.Action.Builder(
+            null, "ارسال پیامک", smsCompose(ctx, o.smsTo, o.smsText, 500_000 + (o.id % 50_000).toInt()),
+        ).build() else null
+        post(
+            ctx, 200_000 + (o.id % 50_000).toInt(), CH_OB, "${o.kind.label}: ${o.title}$party",
+            "سررسید رسیده$amt" + if (sms) "\nپیامک آماده است؛ «ارسال پیامک» را بزن و در برنامهٔ پیامک ارسال کن." else "",
+            "obligations", act,
+        )
     }
 }

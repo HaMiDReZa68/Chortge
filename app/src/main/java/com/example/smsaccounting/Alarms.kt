@@ -39,23 +39,6 @@ object Alarms {
     }
 }
 
-object SmsSend {
-    fun send(ctx: Context, to: String, text: String): Boolean {
-        if (ctx.checkSelfPermission(android.Manifest.permission.SEND_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false
-        return try {
-            val sm = if (Build.VERSION.SDK_INT >= 31) ctx.getSystemService(android.telephony.SmsManager::class.java)
-            else @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
-            val num = to.trim().replace(" ", "")
-            val parts = sm.divideMessage(text)
-            if (parts.size > 1) sm.sendMultipartTextMessage(num, null, parts, null, null)
-            else sm.sendTextMessage(num, null, text, null, null)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-}
-
 class ObligationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Alarms.ACTION) return
@@ -68,18 +51,6 @@ class ObligationReceiver : BroadcastReceiver() {
                 val o = db.obligation(id)
                 if (o != null && !o.done) {
                     Notifs.showObligation(app, o, Prefs(app).toman)
-                    if (o.smsTo.isNotBlank() && o.smsText.isNotBlank() && !o.smsSent) {
-                        val ok = SmsSend.send(app, o.smsTo, o.smsText)
-                        if (ok) db.updateObligation(o.copy(smsSent = true))
-                        Notifs.showInfo(
-                            app, o.id.toInt(),
-                            if (ok) "پیامک ارسال شد" else "ارسال پیامک ناموفق بود",
-                            if (ok) "پیام «" + o.title + "» به " + o.smsTo + " فرستاده شد."
-                            else "دسترسی ارسال پیامک را بده یا شماره را بررسی کن (" + o.smsTo + ").",
-                            "obligations",
-                        )
-                        Store.notifyChanged()
-                    }
                 }
             } finally {
                 pending.finish()
