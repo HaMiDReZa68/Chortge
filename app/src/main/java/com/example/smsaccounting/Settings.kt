@@ -113,7 +113,6 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit, onNav: (Page) -> Unit)
             }
         }
         listOf(
-            Triple("🧾", "فاکتورها", Page.INVOICES),
             Triple("🔒", "قفل برنامه (رمز، الگو، اثر انگشت)", Page.LOCK),
             Triple("🏦", "حساب‌ها و سرشماره‌های پیامک", Page.ACCOUNTS),
             Triple("🏷️", "دسته‌بندی‌ها و زیرشاخه‌ها", Page.CATEGORIES),

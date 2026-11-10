@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val navItems = listOf(
-    "list" to "دسته‌بندی", "home" to "خانه", "chart" to "گزارش", "wallet" to "بودجه", "clock" to "سررسید",
+    "list" to "دسته‌بندی", "home" to "خانه", "chart" to "گزارش", "wallet" to "بودجه", "clock" to "سررسید", "doc" to "فاکتور",
 )
 
 @Composable
@@ -84,13 +84,13 @@ fun BottomNav(tab: Int, badge: Int, onTab: (Int) -> Unit, modifier: Modifier, on
                 val sel = i == tab
                 Box(
                     Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(if (sel) Color.White else Color.Transparent)
                         .clickable { onTab(i) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    LineIcon(icon, if (sel) Color(0xFF111318) else Color.White, 22.dp)
+                    LineIcon(icon, if (sel) Color(0xFF111318) else Color.White, 21.dp)
                     if (i == 0 && badge > 0) {
                         Box(
                             Modifier
@@ -219,22 +219,6 @@ fun HomeTab(vm: MainViewModel, onSettings: () -> Unit, onNav: (Page) -> Unit, on
                     }
                     SoftButton("دانلود") { vm.installUpdate() }
                 }
-            }
-        }
-
-        item {
-            Row(
-                Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable { onNav(Page.INVOICES) }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("🧾  فاکتورها", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("‹", fontSize = 20.sp)
             }
         }
 

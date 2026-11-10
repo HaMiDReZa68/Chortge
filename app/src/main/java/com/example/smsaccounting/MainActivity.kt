@@ -216,6 +216,10 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
                 page = null
                 tab = 4
             }
+            "invoices" -> {
+                page = null
+                tab = 5
+            }
         }
         if (openReq != null) onOpenHandled()
     }
@@ -223,8 +227,6 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
     BackHandler(page != null) {
         page = when (page) {
             Page.ADD_ACCOUNT -> Page.ACCOUNTS
-            Page.INVOICE_SETTINGS, Page.INVOICE_EDIT -> Page.INVOICES
-            Page.INVOICES -> Page.SETTINGS
             else -> null
         }
     }
@@ -505,8 +507,9 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
         if (tab == 1) HomeTab(vm, { page = Page.SETTINGS }, { page = it }, { tab = it }) { selected = it }
         if (tab == 3) BudgetTab(vm)
         if (tab == 4) ObligationsTab(vm)
+        if (tab == 5) InvoicesTab(vm, { page = Page.INVOICE_SETTINGS }, { editInv = it; page = Page.INVOICE_EDIT })
 
-        BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter), if (!vm.searchOpen && tab != 4) ({ showAdd = true }) else null)
+        BottomNav(tab, vm.pendings.size, { tab = it }, Modifier.align(Alignment.BottomCenter), if (!vm.searchOpen && tab != 4 && tab != 5) ({ showAdd = true }) else null)
 
         when (page) {
             Page.SETTINGS -> SettingsScreen(vm, { page = null }, { page = it })
@@ -516,9 +519,8 @@ fun Screen(vm: MainViewModel, openReq: String?, onOpenHandled: () -> Unit) {
             Page.EXPORT -> ExportPage(vm) { page = Page.SETTINGS }
             Page.BACKUP -> BackupPage(vm) { page = Page.SETTINGS }
             Page.LOCK -> LockSettingsPage { page = Page.SETTINGS }
-            Page.INVOICES -> InvoicesPage(vm, { page = Page.SETTINGS }, { page = Page.INVOICE_SETTINGS }, { editInv = it; page = Page.INVOICE_EDIT })
-            Page.INVOICE_SETTINGS -> InvoiceSettingsPage(vm) { page = Page.INVOICES }
-            Page.INVOICE_EDIT -> InvoiceEditPage(vm, editInv) { page = Page.INVOICES }
+            Page.INVOICE_SETTINGS -> InvoiceSettingsPage(vm) { page = null }
+            Page.INVOICE_EDIT -> InvoiceEditPage(vm, editInv) { page = null }
             null -> {}
         }
 

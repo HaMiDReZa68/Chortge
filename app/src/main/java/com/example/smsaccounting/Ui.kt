@@ -42,7 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 
-enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP, LOCK, INVOICES, INVOICE_SETTINGS, INVOICE_EDIT }
+enum class Page { SETTINGS, ACCOUNTS, ADD_ACCOUNT, CATEGORIES, EXPORT, BACKUP, LOCK, INVOICE_SETTINGS, INVOICE_EDIT }
 
 /** صفحهٔ تمام‌صفحه با نوار بالای گرادیانی */
 @Composable
@@ -518,6 +518,7 @@ fun LineIcon(kind: String, color: Color, size: Dp = 24.dp) {
                 val gp = androidx.compose.ui.graphics.vector.PathParser().parsePathString(GEAR_PATH).toPath()
                 scale(u, u, Offset.Zero) { drawPath(gp, color) }
             }
+            "doc" -> { path(7f, 4f, 14f, 4f, 18f, 8f, 18f, 20f, 7f, 20f, close = true); path(14f, 4f, 14f, 8f, 18f, 8f); ln(10f, 13f, 15f, 13f); ln(10f, 16f, 15f, 16f) }
             "plus" -> { ln(12f, 5f, 12f, 19f); ln(5f, 12f, 19f, 12f) }
             "left" -> path(14f, 6f, 8f, 12f, 14f, 18f)
             "right" -> path(10f, 6f, 16f, 12f, 10f, 18f)

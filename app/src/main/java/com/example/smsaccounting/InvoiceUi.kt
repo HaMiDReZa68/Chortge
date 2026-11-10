@@ -30,7 +30,7 @@ private fun money(vm: MainViewModel, r: Long) = InvFmt.money(r, vm.invSet.toman)
 // ============================================================ لیست فاکتورها
 
 @Composable
-fun InvoicesPage(vm: MainViewModel, onBack: () -> Unit, onSettings: () -> Unit, onEdit: (Invoice?) -> Unit) {
+fun InvoicesTab(vm: MainViewModel, onSettings: () -> Unit, onEdit: (Invoice?) -> Unit) {
     var filter by remember { mutableStateOf(0) } // 0 همه، 1 پرداخت‌نشده، 2 پرداخت‌شده
     var delete by remember { mutableStateOf<Invoice?>(null) }
     val unit = InvFmt.unit(vm.invSet.toman)
@@ -39,7 +39,12 @@ fun InvoicesPage(vm: MainViewModel, onBack: () -> Unit, onSettings: () -> Unit, 
     val unpaid = all.filter { !it.paid }.sumOf { it.totals().total }
     val sales = all.sumOf { it.totals().total }
 
-    PageScaffold("فاکتورها", onBack, action = { RoundBtn("⚙", onSettings) }) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    TopBar("فاکتورها") { RoundBtn("⚙", onSettings) }
+    Column(
+        Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         if (vm.invSet.name.isBlank()) {
             SectionCard(Modifier.clickable { onSettings() }) {
                 Text("ابتدا اطلاعات فروشگاه را وارد کن", fontWeight = FontWeight.Bold)
@@ -80,7 +85,8 @@ fun InvoicesPage(vm: MainViewModel, onBack: () -> Unit, onSettings: () -> Unit, 
                 }
             }
         }
-        Spacer(Modifier.height(90.dp))
+        Spacer(Modifier.height(110.dp))
+    }
     }
 
     delete?.let { d ->
