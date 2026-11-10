@@ -23,10 +23,10 @@ object InvoicePdf {
     private const val W = 595f
     private const val H = 842f
     private const val M = 30f
-    private val OLIVE = Color.parseColor("#5F5F00")
-    private val BEIGE = Color.parseColor("#E6E3D0")
-    private val CREAM = Color.parseColor("#FDF6EE")
-    private val GRAY = Color.parseColor("#C9C9C9")
+    private val OLIVE = Color.parseColor("#1F7FD6")
+    private val BEIGE = Color.parseColor("#E3F1FE")
+    private val CREAM = Color.parseColor("#F3F8FE")
+    private val GRAY = Color.parseColor("#CBD5E1")
     private val INK = Color.parseColor("#222222")
     private val MUTED = Color.parseColor("#666666")
     private val RED = Color.parseColor("#C03030")
@@ -119,7 +119,7 @@ object InvoicePdf {
                 c.drawBitmap(logo, src, RectF(cx - 33, cy - 33, cx + 33, cy + 33), Paint(Paint.FILTER_BITMAP_FLAG))
                 c.restore()
             } else {
-                fill.color = Color.parseColor("#FFF0C2")
+                fill.color = Color.parseColor("#D6EBFF")
                 c.drawCircle(cx, cy, 33f, fill)
                 txC(set.name.trim().take(1), cx, cy + 9f, paint(24f, true, OLIVE))
             }
