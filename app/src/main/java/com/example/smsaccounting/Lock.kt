@@ -108,7 +108,7 @@ fun PinPad(length: Int?, error: String?, enabled: Boolean = true, onSubmit: (Str
                     Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(if (i < digits.length) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+                        .background(if (i < digits.length) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
                 )
             }
         }
@@ -158,7 +158,7 @@ fun PatternPad(error: String?, enabled: Boolean = true, onComplete: (String) -> 
     var sel by remember { mutableStateOf(listOf<Int>()) }
     var cur by remember { mutableStateOf<Offset?>(null) }
     val prim = MaterialTheme.colorScheme.primary
-    val idle = MaterialTheme.colorScheme.outlineVariant
+    val idle = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
     val bad = error != null && sel.isNotEmpty()
     LaunchedEffect(error) {
         if (error != null) {
@@ -211,7 +211,7 @@ fun PatternPad(error: String?, enabled: Boolean = true, onComplete: (String) -> 
         if (last != null && c != null) drawLine(col, center(last), c, 8f, StrokeCap.Round)
         for (i in 0 until 9) {
             val on = i in sel
-            drawCircle(if (on) col else idle, if (on) 20f else 14f, center(i))
+            drawCircle(if (on) col else idle, if (on) 22f else 18f, center(i))
             if (on) drawCircle(col.copy(alpha = 0.18f), 46f, center(i))
         }
     }

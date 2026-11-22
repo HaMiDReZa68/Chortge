@@ -37,27 +37,19 @@ fun SplashScreen(onDone: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Teal1)
+            .background(Color(0xFFF9F2EA))
             .clickable { onDone() },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(420.dp).alpha(0.5f * a.value).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape))
-        Box(Modifier.size(290.dp).alpha(0.8f * a.value).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape))
-        Column(
-            Modifier
+        Image(
+            painterResource(R.drawable.splash_logo),
+            contentDescription = "هومایه",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
                 .alpha(a.value)
-                .scale(0.9f + 0.1f * a.value),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Image(
-                painterResource(R.drawable.logo_mask),
-                contentDescription = "هومایه",
-                colorFilter = ColorFilter.tint(Color.White),
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.width(240.dp),
-            )
-            Spacer(Modifier.height(14.dp))
-            Text("حساب‌وکتاب هوشمند پیامک", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
-        }
+                .scale(0.92f + 0.08f * a.value),
+        )
     }
 }
