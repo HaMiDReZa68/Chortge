@@ -1,5 +1,8 @@
 package com.example.smsaccounting
 
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -173,7 +176,7 @@ fun PatternPad(error: String?, enabled: Boolean = true, onComplete: (String) -> 
     fun hit(o: Offset): Int? {
         for (i in 0 until 9) {
             val c = center(i)
-            if ((c - o).getDistance() < size.width / 3f * 0.32f) return i
+            if ((c - o).getDistance() < size.width / 3f * 0.36f) return i
         }
         return null
     }
@@ -182,23 +185,24 @@ fun PatternPad(error: String?, enabled: Boolean = true, onComplete: (String) -> 
             .size(270.dp)
             .pointerInput(enabled, error) {
                 if (!enabled) return@pointerInput
-                detectDragGestures(
-                    onDragStart = { o ->
-                        sel = emptyList()
-                        cur = o
-                        hit(o)?.let { sel = listOf(it) }
-                    },
-                    onDrag = { change, _ ->
-                        cur = change.position
-                        val h = hit(change.position)
-                        if (h != null && h !in sel) sel = sel + h
-                    },
-                    onDragEnd = {
-                        cur = null
-                        if (sel.isNotEmpty()) onComplete(sel.joinToString("-"))
-                    },
-                    onDragCancel = { cur = null },
-                )
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    sel = emptyList()
+                    cur = down.position
+                    hit(down.position)?.let { sel = listOf(it) }
+                    val id = down.id
+                    while (true) {
+                        val ev = awaitPointerEvent()
+                        val ch = ev.changes.firstOrNull { it.id == id } ?: break
+                        if (ch.changedToUp()) { ch.consume(); break }
+                        cur = ch.position
+                        hit(ch.position)?.let { if (it !in sel) sel = sel + it }
+                        ch.consume()
+                    }
+                    cur = null
+                    if (sel.isNotEmpty()) onComplete(sel.joinToString("-"))
+                }
             }
             .onSizeChanged { size = it }
     ) {

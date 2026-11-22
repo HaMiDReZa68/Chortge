@@ -138,9 +138,7 @@ class MainActivity : ComponentActivity() {
                             Box(
                                 Modifier
                                     .fillMaxSize()
-                                    .pointerInput(Unit) {
-                                        awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
-                                    },
+                                    .pointerInput(Unit) { },
                             ) { LockScreen { locked.value = false } }
                         }
                     }
